@@ -1,0 +1,164 @@
+{
+  "app_name": "Consent-first Proximity Promos for Ole Miss",
+  "personality": "6 Glass / Luxe DARK",
+  "personality_one_liner": "A cinematic, vibrant nightlife experience built on deep Ole Miss Navy, highlighted by striking Red, wrapped in a clean, minimal layout with premium glass surfaces.",
+  "color": {
+    "surface": "#0A111F",
+    "onSurface": "#FFFFFF",
+    "surfaceSecondary": "#14213D",
+    "onSurfaceSecondary": "#E2E8F0",
+    "surfaceTertiary": "#1E2F54",
+    "onSurfaceTertiary": "#CBD5E1",
+    "surfaceInverse": "#FFFFFF",
+    "onSurfaceInverse": "#0A111F",
+    "brand": "#CE1126",
+    "brandPrimary": "#CE1126",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#9E0D1D",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#3E1820",
+    "onBrandTertiary": "#FFD4D8",
+    "success": "#10B981",
+    "onSuccess": "#FFFFFF",
+    "warning": "#F59E0B",
+    "onWarning": "#FFFFFF",
+    "error": "#EF4444",
+    "onError": "#FFFFFF",
+    "border": "#1E2F54",
+    "borderStrong": "#2C4073",
+    "divider": "#14213D"
+  },
+  "typography": {
+    "displayFontFamily": "Plus Jakarta Sans",
+    "textFontFamily": "Geist",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous vertical breathing room for cinematic feel; tight grouping within data cards. Cards never flush to screen edge; always maintain outer padding.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "0",
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": true,
+    "do's": [
+      "Use heavily on elevated surfaces: Bottom tab bar, sticky top headers over scrollable feeds, and floating filter chips.",
+      "Apply to bottom-sheet headers and hero card overlays.",
+      "Ensure a translucent tinted base (opacity ≥ 75% of surfaceSecondary) is layered underneath the blur for foreground text readability."
+    ],
+    "dont's": [
+      "Never blur body text regions, form field backgrounds, or dense list rows.",
+      "Do not rely solely on blur for contrast without the tint base layer."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Onboarding & Consent",
+      "purpose": "Introduce the app, set proximity/privacy preferences, and confirm age requirements.",
+      "states": {
+        "loading": "Spinner over full-bleed background",
+        "empty": "N/A",
+        "error": "Standard error toast"
+      },
+      "layout": "Full-bleed hero image covering the entire screen. A vertical gradient scrim fades into solid surface at the bottom 40%. The bottom container holds clean typography and elegant, large hit-target toggles for Location Consent and 'I am 21+'. Sticky brandPrimary CTA button at the very bottom."
+    },
+    {
+      "name": "Promo Feed",
+      "purpose": "Discover live nightlife promos via proximity and category.",
+      "states": {
+        "loading": "Skeleton cards with subtle shimmer",
+        "empty": "Illustration of a cocktail with 'No promos nearby. Try increasing your radius.'",
+        "error": "Error message with 'Retry' button"
+      },
+      "layout": "Sticky glass header with a horizontal scrollable row of pill filters (Distance 0-5mi, Event Types). Content is a vertical scroll of visual-first large cards. Each card uses a background photo, a mandatory 3-stop vertical gradient scrim, and details (Bar, Promo, Distance) pinned to the bottom of the card."
+    },
+    {
+      "name": "Tickets & QR Redemption",
+      "purpose": "View saved promos, loyalty points, and redeem offers at the bar.",
+      "states": {
+        "loading": "Centered spinner",
+        "empty": "Illustration with 'No active tickets.'",
+        "error": "QR loading error with retry"
+      },
+      "layout": "Top half displays a rich loyalty points gauge using neon red accents against the deep navy background. Bottom half is a list of active promos. Tapping a promo opens a full-screen or modal QR code. The QR code MUST have a solid white background pad (surfaceInverse) to ensure scanner readability, surrounded by a dark UI frame and a clear status indicator."
+    },
+    {
+      "name": "Bar Admin Analytics",
+      "purpose": "Dashboard for bar managers to track promo performance.",
+      "states": {
+        "loading": "Skeleton KPI tiles",
+        "empty": "N/A",
+        "error": "Error fetching data"
+      },
+      "layout": "Minimalist grid of numeric KPI tiles (Total Scans, Active Promos, Reach) utilizing surfaceSecondary cards. Large display typography for numbers. Segmented control for timeframes (Today, Week, Month) using brandPrimary for the active segment."
+    },
+    {
+      "name": "Bar Admin Promo Creator",
+      "purpose": "Form to deploy a new proximity promo.",
+      "states": {
+        "loading": "Spinner in CTA",
+        "empty": "N/A",
+        "error": "Validation error text below inputs"
+      },
+      "layout": "Single-column form with generous vertical spacing. Labels above inputs. Input fields use surfaceTertiary with border outlines. Sticky 'Publish Promo' CTA pinned to the bottom within a KeyboardAvoidingView and a glass container."
+    }
+  ],
+  "images": {
+    "onboarding_hero": {
+      "url": "https://images.unsplash.com/photo-1570872626485-d8ffea69f463?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDN8MHwxfHNlYXJjaHwxfHxuaWdodGNsdWIlMjBjcm93ZCUyMGRhcmslMjBhZXN0aGV0aWN8ZW58MHx8fHwxNzgyNjkwNzMwfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "people performing on stage near partying people"
+    },
+    "promo_party": {
+      "url": "https://images.pexels.com/photos/3122799/pexels-photo-3122799.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "alt": "Vibrant live concert scene with an energetic crowd"
+    },
+    "promo_cocktail": {
+      "url": "https://images.unsplash.com/photo-1500217052183-bc01eee1a74e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODF8MHwxfHNlYXJjaHwxfHxjb2NrdGFpbCUyMGRhcmslMjBhZXN0aGV0aWN8ZW58MHx8fHwxNzgyNjkwNzI5fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "brown beverage with olives and herb in rocks glass"
+    },
+    "neon_bar_sign": {
+      "url": "https://images.unsplash.com/photo-1628254116228-58e131b7bc56?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDV8MHwxfHNlYXJjaHwxfHxuZW9uJTIwc2lnbiUyMGJhciUyMGRhcmt8ZW58MHx8fHwxNzgyNjkwNzI5fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "red and black coca cola neon signage"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Strictly use the Ole Miss Navy (#0A111F, #14213D) and Red (#CE1126) palette derived from the brief. The UI should feel cinematic, premium, and dark.",
+    "Consolidate navigation to 4 bottom tabs to satisfy constraints: Feed (Discovery), Bars (Directory), Tickets (QR & Loyalty), and Profile (Settings/Privacy/Admin).",
+    "MANDATORY: Any image used as a card background or hero image must have a 3-stop vertical linear-gradient scrim (transparent -> 20% #0A111F -> 90% #0A111F) overlaying it, with text placed in the bottom 30%.",
+    "For the QR Redemption Screen: Ensure the actual QR code is rendered on a pure white background pad (surfaceInverse) to ensure it can be scanned accurately in dark environments. Surround it with the dark app UI.",
+    "Implement glassmorphism on the bottom tab bar, sticky header of the Promo Feed, and the CTA container in the Admin Promo Creator.",
+    "Form fields and cards should use surfaceSecondary and surfaceTertiary to maintain depth, never pure black unless it's the root background.",
+    "Apply subtle haptic feedback on tab changes, filter chip selection, and the QR Redemption success state."
+  ]
+}
