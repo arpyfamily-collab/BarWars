@@ -32,6 +32,7 @@ export default function RootLayout() {
             <Stack.Screen name="onboarding" />
             <Stack.Screen name="sign-in" />
             <Stack.Screen name="sign-up" />
+            <Stack.Screen name="verify-phone" />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="promo/[id]" options={{ presentation: "card" }} />
             <Stack.Screen name="qr/[promoId]" options={{ presentation: "modal" }} />

@@ -11,8 +11,12 @@ from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta, timezone
+import asyncio
+import random
 from passlib.context import CryptContext
 from jose import jwt, JWTError
+
+from sms import send_sms, is_configured as sms_is_configured, valid_e164, SmsConfigError, SmsSendError
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -70,6 +74,8 @@ class UserOut(BaseModel):
     opt_in_status: bool = False
     preferences: Preferences = Preferences()
     loyalty_points: int = 0
+    phone: Optional[str] = None
+    phone_verified: bool = False
 
 
 class TokenResponse(BaseModel):
@@ -201,6 +207,8 @@ def user_to_out(doc: Dict[str, Any]) -> UserOut:
         opt_in_status=doc.get("opt_in_status", False),
         preferences=Preferences(**prefs) if prefs else Preferences(),
         loyalty_points=doc.get("loyalty_points", 0),
+        phone=doc.get("phone"),
+        phone_verified=doc.get("phone_verified", False),
     )
 
 
@@ -345,6 +353,106 @@ async def redeem_loyalty(user: Dict[str, Any] = Depends(get_current_user)):
     await db.users.update_one({"id": user["id"]}, {"$inc": {"loyalty_points": -100}})
     await audit("loyalty.redeem", user["id"], user["id"], {"points": 100})
     return {"ok": True, "reward": "Free drink at any partner bar"}
+
+
+# =========================
+# SMS / PHONE OTP (Twilio)
+# =========================
+class PhoneRequest(BaseModel):
+    phone: str
+
+
+class OtpVerify(BaseModel):
+    phone: str
+    code: str
+
+
+def _run_sms(to: str, body: str) -> Optional[str]:
+    """Run blocking Twilio send in a thread; raises SmsConfigError / SmsSendError."""
+    return send_sms(to, body)
+
+
+@api_router.get("/sms/status")
+async def sms_status():
+    return {"configured": sms_is_configured()}
+
+
+@api_router.post("/sms/otp/send")
+async def sms_otp_send(req: PhoneRequest, user: Dict[str, Any] = Depends(get_current_user)):
+    if not valid_e164(req.phone):
+        raise HTTPException(400, "Phone must be in E.164 format (e.g. +16625551234)")
+    # Rate limit: 1 send per 60s per phone
+    recent = await db.phone_otps.find_one(
+        {"phone": req.phone, "created_at": {"$gt": now_utc() - timedelta(seconds=60)}}
+    )
+    if recent:
+        raise HTTPException(429, "Please wait a minute before requesting another code")
+
+    code = f"{random.randint(0, 999999):06d}"
+    expires_at = now_utc() + timedelta(minutes=10)
+    await db.phone_otps.insert_one({
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "phone": req.phone,
+        "code": code,
+        "expires_at": expires_at,
+        "used": False,
+        "created_at": now_utc(),
+    })
+
+    body = f"Your Ole Miss Promos verification code is {code}. It expires in 10 minutes."
+    try:
+        sid = await asyncio.get_event_loop().run_in_executor(None, _run_sms, req.phone, body)
+    except SmsConfigError:
+        raise HTTPException(503, "SMS is not configured yet. Ask the admin to set TWILIO credentials in backend/.env")
+    except SmsSendError as e:
+        raise HTTPException(400, f"SMS send failed: {e}")
+
+    # Optimistically stamp pending phone on the user (not yet verified)
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"phone": req.phone, "phone_verified": False}},
+    )
+    await audit("sms.otp.send", user["id"], req.phone, {"sid": sid})
+    return {"ok": True, "expires_at": expires_at}
+
+
+@api_router.post("/sms/otp/verify", response_model=UserOut)
+async def sms_otp_verify(data: OtpVerify, user: Dict[str, Any] = Depends(get_current_user)):
+    doc = await db.phone_otps.find_one(
+        {"phone": data.phone, "code": data.code, "used": False, "user_id": user["id"]},
+        sort=[("created_at", -1)],
+    )
+    if not doc:
+        raise HTTPException(400, "Invalid code")
+    exp = doc["expires_at"]
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if exp < now_utc():
+        raise HTTPException(400, "Code expired. Send a new one.")
+    await db.phone_otps.update_one({"_id": doc["_id"]}, {"$set": {"used": True}})
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"phone": data.phone, "phone_verified": True}},
+    )
+    await audit("sms.otp.verify", user["id"], data.phone)
+    updated = await db.users.find_one({"id": user["id"]}, {"_id": 0})
+    return user_to_out(updated)
+
+
+@api_router.post("/sms/test")
+async def sms_test(user: Dict[str, Any] = Depends(get_current_user)):
+    if not user.get("phone_verified") or not user.get("phone"):
+        raise HTTPException(400, "Verify your phone number first")
+    body = f"Hey {user.get('name') or 'Rebel'} — this is your Ole Miss Promos test SMS. You're all set!"
+    try:
+        sid = await asyncio.get_event_loop().run_in_executor(None, _run_sms, user["phone"], body)
+    except SmsConfigError:
+        raise HTTPException(503, "SMS is not configured")
+    except SmsSendError as e:
+        raise HTTPException(400, f"SMS send failed: {e}")
+    await audit("sms.test", user["id"], user["phone"], {"sid": sid})
+    return {"ok": True, "sid": sid}
 
 
 # =========================

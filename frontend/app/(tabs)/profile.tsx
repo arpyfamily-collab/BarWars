@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "@/src/auth/AuthContext";
+import { api } from "@/src/api/client";
 import { colors, spacing, radii, font } from "@/src/theme";
 
 export default function ProfileScreen() {
@@ -14,6 +15,7 @@ export default function ProfileScreen() {
   const [radius, setRadius] = useState(String(user?.preferences?.radius_miles ?? 2.5));
   const [smsOn, setSmsOn] = useState(user?.preferences?.channels.includes("sms") ?? false);
   const [pushOn, setPushOn] = useState(user?.preferences?.channels.includes("push") ?? true);
+  const [smsMsg, setSmsMsg] = useState<string | null>(null);
 
   async function savePrefs() {
     const channels: string[] = [];
@@ -38,6 +40,39 @@ export default function ProfileScreen() {
           </View>
           <Text style={styles.name} testID="profile-name">{user?.name ?? user?.email}</Text>
           <Text style={styles.role}>{user?.role === "bar_admin" ? "Bar Admin" : "Member"}</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Phone</Text>
+          {user?.phone_verified ? (
+            <View>
+              <View style={styles.row}>
+                <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                <Text style={[styles.rowText, { marginLeft: spacing.sm }]} testID="profile-phone">{user?.phone}</Text>
+              </View>
+              <Pressable
+                testID="send-test-sms"
+                onPress={async () => {
+                  setSmsMsg(null);
+                  try {
+                    await api("/sms/test", { method: "POST" });
+                    setSmsMsg("Test SMS sent.");
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  } catch (e: any) { setSmsMsg(e.message || "SMS failed"); }
+                }}
+                style={[styles.saveBtn, { marginTop: spacing.md }]}
+              >
+                <Text style={styles.saveBtnText}>Send test SMS</Text>
+              </Pressable>
+              {smsMsg && <Text style={[styles.rowText, { color: colors.brand, marginTop: spacing.sm }]} testID="sms-result">{smsMsg}</Text>}
+            </View>
+          ) : (
+            <Pressable testID="verify-phone-cta" style={styles.row} onPress={() => router.push("/verify-phone")}>
+              <Ionicons name="phone-portrait" size={22} color={colors.brand} />
+              <Text style={styles.rowText}>Verify phone for SMS alerts</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+            </Pressable>
+          )}
         </View>
 
         {user?.role === "bar_admin" && (

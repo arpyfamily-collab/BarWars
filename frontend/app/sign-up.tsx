@@ -27,7 +27,7 @@ export default function SignUp() {
         age_verified: params.age === "1",
         opt_in_status: params.location === "1",
       } as any);
-      router.replace("/(tabs)");
+      router.replace("/verify-phone");
     } catch (e: any) {
       setError(e.message || "Sign up failed");
     } finally {

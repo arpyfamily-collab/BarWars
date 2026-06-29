@@ -17,6 +17,8 @@ export type User = {
   opt_in_status: boolean;
   preferences: Preferences;
   loyalty_points: number;
+  phone?: string | null;
+  phone_verified?: boolean;
 };
 
 type AuthContextValue = {
