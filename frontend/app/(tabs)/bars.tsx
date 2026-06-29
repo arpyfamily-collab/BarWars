@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,14 +14,15 @@ export default function BarsScreen() {
   const router = useRouter();
   const [bars, setBars] = useState<Bar[]>([]);
 
-  useFocusEffect(useCallback(() => {
-    (async () => {
-      try {
-        const data = await api<Bar[]>(`/bars?lat=34.365&lon=-89.5384`);
-        setBars(data);
-      } catch {}
-    })();
-  }, []));
+  const load = useCallback(async () => {
+    try {
+      const data = await api<Bar[]>(`/bars?lat=34.365&lon=-89.5384`);
+      setBars(data);
+    } catch {}
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>

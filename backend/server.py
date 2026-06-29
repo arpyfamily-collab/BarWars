@@ -700,7 +700,7 @@ SEED_BARS = [
         "description": "Live blues, smoky vibes, and the best wings near the Grove.",
         "campus_area": "Oxford Square",
         "lat": 34.3648, "lon": -89.5398,
-        "image_url": "https://images.unsplash.com/photo-1571266028243-d220c6a52b7d?w=800",
+        "image_url": "https://images.pexels.com/photos/4254551/pexels-photo-4254551.jpeg?w=800",
         "rating": 4.7,
     },
 ]
