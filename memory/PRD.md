@@ -44,7 +44,13 @@ Consent-based, proximity-driven nightlife promo platform for bars near the Unive
 - Export (`/privacy/me/export`) returns user + engagements + qrcodes; `DELETE /privacy/me` purges user data (non-admin).
 
 ## SMS
-SMS toggle is **MOCKED UI ONLY** — no Twilio wired up. User explicitly requested this; Twilio will be hooked up later.
+SMS now uses the **real Twilio Messages API** (`twilio` Python SDK).
+- Endpoints: `GET /api/sms/status`, `POST /api/sms/otp/send`, `POST /api/sms/otp/verify`, `POST /api/sms/test`
+- OTP: 6-digit, 10-minute expiry, single-use, 1-send-per-60s rate limit (stored in `db.phone_otps`)
+- User model adds `phone` (E.164) and `phone_verified` (bool)
+- Sign-up flow now routes to `/verify-phone` before the tabs; user can skip
+- Profile shows a "Send test SMS" button once `phone_verified=true`
+- Credentials live in `/app/backend/.env`: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` — currently placeholders. The `/api/sms/status` endpoint reports `configured: false` and send endpoints return a clean `503` until real creds are pasted in.
 
 ## Location
 Uses `expo-location` with foreground permission; **falls back to Oxford, MS center (34.365, -89.5384)** when permission denied or running in preview.
