@@ -1,0 +1,52 @@
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://barwars.app"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+# ─── Edge Functions ───────────────────────────────────────────────────────────
+
+[functions.process-score-event]
+verify_jwt = false  # verified via HMAC signature instead
+
+[functions.challenge-notifications]
+verify_jwt = false  # called server-to-server with service role key
+
+# Cron: runs every 5 minutes — closes expired challenges, fires winner notifications,
+# flips approved challenges to live, sends 30-min warnings, flags overdue forfeits
+[functions.declare-winner]
+verify_jwt = false
+schedule = "*/5 * * * *"
