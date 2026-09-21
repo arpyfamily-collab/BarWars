@@ -12,7 +12,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase-client'
 import { useChallengeLive } from '@/hooks/useChallengeLive'
 import BattleBar        from '@/components/BattleBar'
 import BattleCountdown  from '@/components/BattleCountdown'

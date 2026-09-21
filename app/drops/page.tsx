@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useState, useRef } from 'react'
-import { createClient } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase-client'
 import BottomNav from '@/components/BottomNav'
 import { PASS_TYPE_LABELS } from '@/types'
 import type { PassType } from '@/types'

@@ -1,6 +1,7 @@
 import { createBrowserClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
-// Browser client — safe to call anywhere
 export function createClient() {
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,11 +9,7 @@ export function createClient() {
   )
 }
 
-// Server client — only import in Server Components and API routes
-// Dynamically imported to avoid calling cookies() outside request scope
-export async function createServerSupabaseClient() {
-  const { createServerClient } = await import('@supabase/ssr')
-  const { cookies } = await import('next/headers')
+export function createServerSupabaseClient() {
   const cookieStore = cookies()
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,10 +17,10 @@ export async function createServerSupabaseClient() {
     {
       cookies: {
         get(name: string) { return cookieStore.get(name)?.value },
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options: CookieOptions) {
           try { cookieStore.set({ name, value, ...options }) } catch {}
         },
-        remove(name: string, options: any) {
+        remove(name: string, options: CookieOptions) {
           try { cookieStore.set({ name, value: '', ...options }) } catch {}
         },
       },
@@ -31,7 +28,6 @@ export async function createServerSupabaseClient() {
   )
 }
 
-// Service role client — API routes only, never browser
 export function createServiceClient() {
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

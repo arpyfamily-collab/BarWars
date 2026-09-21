@@ -1,6 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export default async function OperatorNominationsPage() {
   const supabase = createServerSupabaseClient()

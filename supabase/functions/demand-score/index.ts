@@ -18,7 +18,7 @@
  * Invoke: POST /functions/v1/demand-score { date, venue_id }
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const CFBD_BASE     = 'https://api.collegefootballdata.com'
 const CFBD_KEY      = Deno.env.get('CFBD_API_KEY') ?? ''

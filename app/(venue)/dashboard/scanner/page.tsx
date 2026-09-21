@@ -28,7 +28,8 @@ export default function ScannerPage() {
   const startCamera = useCallback(async () => {
     setState('starting')
     try {
-      const { BrowserMultiFormatReader, NotFoundException } = await import('@zxing/browser')
+      const { BrowserMultiFormatReader } = await import('@zxing/browser')
+      const { NotFoundException } = await import('@zxing/library')
       const reader = new BrowserMultiFormatReader()
       readerRef.current = reader
 

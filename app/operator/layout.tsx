@@ -7,6 +7,7 @@ const NAV = [
   { href: '/operator/challenges',  label: 'Challenges',  icon: '⚔️' },
   { href: '/operator/venues',      label: 'Venues',      icon: '🏛️' },
   { href: '/operator/nominations', label: 'Nominations', icon: '🎯' },
+  { href: '/operator/turf-wars',   label: 'Turf Wars',   icon: '🏴' },
 ]
 
 export default async function OperatorLayout({ children }: { children: React.ReactNode }) {

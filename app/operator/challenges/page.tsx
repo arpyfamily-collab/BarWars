@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
 import Link from 'next/link'
 
-export const revalidate = 10
+export const dynamic = 'force-dynamic'
 
 const STATUS_LABELS: Record<string, string> = {
   proposed:         'Proposed',

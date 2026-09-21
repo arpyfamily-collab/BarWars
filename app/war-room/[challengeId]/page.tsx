@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase-client'
 import { useWarRoom } from '@/hooks/useWarRoom'
 import BottomNav from '@/components/BottomNav'
 

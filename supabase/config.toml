@@ -50,3 +50,7 @@ verify_jwt = false  # called server-to-server with service role key
 [functions.declare-winner]
 verify_jwt = false
 schedule = "*/5 * * * *"
+
+[functions.turf-war-scheduler]
+verify_jwt = false
+schedule = "*/5 * * * *"

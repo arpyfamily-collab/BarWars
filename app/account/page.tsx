@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
 import PushNotificationPrompt from '@/components/PushNotificationPrompt'
 import BottomNav from '@/components/BottomNav'
+import { Shield, ChevronRight } from 'lucide-react'
 
 export default async function AccountPage() {
   const supabase = createServerSupabaseClient()
@@ -62,6 +63,20 @@ export default async function AccountPage() {
 
         {/* Push notifications */}
         <PushNotificationPrompt />
+
+        {/* Verification / Anti-Fraud */}
+        <a href="/account/verification" style={{ display: 'block', textDecoration: 'none' }}>
+          <div className="card" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderLeft: '3px solid var(--bw-gold)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Shield size={20} style={{ color: 'var(--bw-gold)' }} />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--bw-text)' }}>Verification & Anti-Fraud</div>
+                <div style={{ fontSize: 11, color: 'var(--bw-muted)' }}>Device, phone, and .edu verification</div>
+              </div>
+            </div>
+            <ChevronRight size={20} style={{ color: 'var(--bw-muted)' }} />
+          </div>
+        </a>
 
         {/* Veteran badges */}
         {(badges ?? []).length > 0 && (

@@ -18,7 +18,7 @@
  * and marks it sent so the rest of the pipeline isn't blocked.
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 interface NotifyRequest {
   challenge_id:       string

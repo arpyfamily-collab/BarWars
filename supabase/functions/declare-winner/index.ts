@@ -10,10 +10,10 @@
  *
  * Schedule (add to supabase/config.toml):
  *   [functions.declare-winner]
- *   schedule = "*/5 * * * *"
+ *   schedule = "every 5 minutes"
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 Deno.serve(async (req: Request) => {
   // Allow both cron invocation (GET) and manual trigger (POST)
