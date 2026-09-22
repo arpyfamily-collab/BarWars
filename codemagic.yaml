@@ -9,25 +9,30 @@ workflows:
         distribution_type: development
         bundle_identifier: com.arpyfamily.barwars
       node: 22.0.0
+      xcode: latest
     scripts:
       - name: Install dependencies
-        script: |
-          npm ci
+        script: npm ci
       - name: Sync Capacitor
-        script: |
-          npx cap sync ios
+        script: npx cap sync ios
       - name: Install CocoaPods
-        script: |
-          cd ios/App && pod install
+        script: cd ios/App && pod install
+      - name: Set up code signing
+        script: xcode-project use-profiles
       - name: Build iOS
         script: |
-          xcode-project build-ipa --workspace "ios/App/App.xcworkspace" --scheme "App"
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/App.xcarchive \
+            archive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
     artifacts:
-      - build/ios/ipa/*.ipa
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
+      - ios/App/build/**/*.xcarchive
 
 
   android-build:
@@ -38,13 +43,10 @@ workflows:
       java: 21
     scripts:
       - name: Install dependencies
-        script: |
-          npm ci
+        script: npm ci
       - name: Sync Capacitor
-        script: |
-          npx cap sync android
+        script: npx cap sync android
       - name: Build Android
-        script: |
-          cd android && chmod +x gradlew && ./gradlew assembleRelease
+        script: cd android && chmod +x gradlew && ./gradlew assembleRelease
     artifacts:
       - android/app/build/outputs/**/*.apk
