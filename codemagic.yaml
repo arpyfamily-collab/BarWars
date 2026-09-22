@@ -3,28 +3,28 @@ workflows:
     name: iOS Build
     max_build_duration: 60
     instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: Codemagic Test
     environment:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.arpyfamily.barwars
-      vars:
-        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
-        XCODE_SCHEME: "App"
+      node: 18.17.0
     scripts:
       - name: Install dependencies
         script: |
           npm ci
-          npx cap sync ios
-      - name: Set up code signing
+      - name: Sync Capacitor
         script: |
-          xcode-project use-profiles
+          npx cap sync ios
+      - name: Install CocoaPods
+        script: |
+          cd ios/App && pod install
       - name: Build iOS
         script: |
-          cd ios/App
-          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -archivePath build/App.xcarchive archive
-          xcodebuild -exportArchive -archivePath build/App.xcarchive -exportOptionsPlist exportOptions.plist -exportPath build/output
+          xcode-project build-ipa --workspace "ios/App/App.xcworkspace" --scheme "App"
     artifacts:
-      - ios/App/build/output/*.ipa
+      - build/ios/ipa/*.ipa
     publishing:
       app_store_connect:
         auth: integration
@@ -34,14 +34,17 @@ workflows:
     name: Android Build
     max_build_duration: 60
     instance_type: linux_x2
+    environment:
+      node: 18.17.0
     scripts:
       - name: Install dependencies
         script: |
           npm ci
+      - name: Sync Capacitor
+        script: |
           npx cap sync android
       - name: Build Android
         script: |
-          cd android
-          ./gradlew assembleRelease
+          cd android && ./gradlew assembleRelease
     artifacts:
       - android/app/build/outputs/**/*.apk
