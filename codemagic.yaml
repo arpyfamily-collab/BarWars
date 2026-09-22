@@ -29,11 +29,13 @@ workflows:
         auth: integration
         submit_to_testflight: true
 
+
   android-build:
     name: Android Build
     max_build_duration: 60
     environment:
       node: 22.0.0
+      java: 21
     scripts:
       - name: Install dependencies
         script: |
