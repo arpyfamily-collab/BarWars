@@ -8,7 +8,7 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.arpyfamily.barwars
-      node: 18.17.0
+      node: 22.0.0
     scripts:
       - name: Install dependencies
         script: |
@@ -33,7 +33,7 @@ workflows:
     name: Android Build
     max_build_duration: 60
     environment:
-      node: 18.17.0
+      node: 22.0.0
     scripts:
       - name: Install dependencies
         script: |
