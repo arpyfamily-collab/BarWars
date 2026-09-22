@@ -2,7 +2,6 @@ workflows:
   ios-build:
     name: iOS Build
     max_build_duration: 60
-    instance_type: mac_mini_m1
     integrations:
       app_store_connect: Codemagic Test
     environment:
@@ -33,7 +32,6 @@ workflows:
   android-build:
     name: Android Build
     max_build_duration: 60
-    instance_type: linux
     environment:
       node: 18.17.0
     scripts:
