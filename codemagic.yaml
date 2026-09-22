@@ -3,7 +3,7 @@ workflows:
     name: iOS Build
     max_build_duration: 60
     integrations:
-      app_store_connect: Codemagic Test
+      app_store_connect: Codemagic Admin
     environment:
       ios_signing:
         distribution_type: development
