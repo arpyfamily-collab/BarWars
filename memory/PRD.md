@@ -1,7 +1,9 @@
-# PRD — Bar Wars: The College Nightlife War Game
+# PRD — BarWars: The College Nightlife War Game
+
 > Proximity · Conquest · Loyalty · Espionage
 > Oxford, MS — Ole Miss Pilot | 2026
-> v2.0 — Updated September 22, 2026
+> v3.0 — Updated September 23, 2026
+> Nightlife Never Dies.
 
 ---
 
@@ -18,7 +20,7 @@ A gamified territorial conquest platform layered on top of college bar culture. 
 
 ## The Solution
 
-Six interlocking systems that turn college nightlife into a war game:
+Eight interlocking systems that turn college nightlife into a war game:
 
 1. **Greek Turf Wars** — Fraternities and sororities claim bars, defend them, and wage war for dominance.
 2. **Hessian Factions** — Independent mercenary companies. No allegiance, maximum chaos.
@@ -26,6 +28,8 @@ Six interlocking systems that turn college nightlife into a war game:
 4. **Shots Fired** — Economic warfare. Buy shots, signal attack. The bar profits every time.
 5. **Scorched Earth** — Graduating seniors go out in flames. Platform-wide final battle.
 6. **Regiment Finder** — Unaffiliated students find their crew. Nobody fights alone.
+7. **Skins & Live Radar** — Every student is a living icon on the War Map. 24/7 campus radar.
+8. **War Comms** — In-app channels for coordination, trash talk, and intel drops.
 
 ---
 
@@ -130,6 +134,20 @@ Bars earn flares through gameplay, then spend them to steal traffic from rival b
 
 ---
 
+## War Specials — Creative Specials Earn Flares
+
+Bars earn flare credits by running genuinely creative specials — not standard promos.
+
+### Rules
+- Must be submitted through the app with description
+- Other bars' staff can flag copycat specials
+- Students vote on engagement — highest check-ins during the special window wins
+- **One bar per week wins "Best War Special"** — worth 2 bonus flares
+- Standard rotation deals ("dollar wells") don't qualify
+- "Reverse Happy Hour — prices go UP every 30 minutes" qualifies
+
+---
+
 ## Bracelet Drops — Scavenger Hunt System
 
 Physical QR-coded bracelets hidden around campus. Bars post clues. Students hunt.
@@ -147,30 +165,127 @@ Bar hides bracelet → Posts clues in-app (up to 3, timed release)
 ```
 
 ### Key Design Decisions
-- **Physical bracelets with QR codes** — tactile, collectible, Instagram-worthy. Bars order from BarWars ($0.50/each). Limited editions for Scorched Earth, homecoming.
+- **Physical bracelets with QR codes** — tactile, collectible, Instagram-worthy
 - **Donor earns:** 25 Valor Bonds + "Quartermaster" badge (stacks)
 - **Bar earns flare credit regardless** of whether bracelet is kept or donated
 - **Armory buy does NOT cancel earned flare** — bar did the work, flare is earned
 
 ### Prediction Market Layer
 Students can bet (Valor Bonds) on bracelet activity:
-- **Daily:** "Which bar dropped today?" — correct guessers split a Valor Bond pool
-- **Weekly:** "Over/under on total drops?" — line set by platform
-- **Season:** "Which bar will have most drops by semester end?" — futures bet
-- **Winners earn "War Analyst" badge** and leaderboard ranking
+- **Daily:** "Which bar dropped today?" — correct guessers earn 50 Valor Bonds
+- **Weekly:** "Over/under on total drops?" — line set by platform, winners earn 75 Valor Bonds
+- **Season:** "Which bar will have most drops by semester end?" — futures bet, War Analyst badge + jackpot
+- All bets in Valor Bonds — no real money, no gambling regulations
 
 ---
 
-## War Specials — Creative Specials Earn Flares
+## Skins & Live Radar — Living Avatar System
 
-Bars earn flare credits by running genuinely creative specials — not standard promos.
+Every student on campus is a living icon on the War Map, creating a 24/7 social radar that transforms BarWars from a weekend nightlife app into an always-on campus platform.
 
-### Rules
-- Must be submitted through the app with description
-- Other bars' staff can flag copycat specials
-- Students vote on engagement — highest check-ins during the special window wins
-- **One bar per week wins "Best War Special"** — worth 2 bonus flares
-- Standard rotation deals ("dollar wells") don't qualify
+### Layer 1: Status Skins (Free)
+Broadcast what you're doing right now. Auto-detects via geofence or set manually.
+
+| Status | Icon | Activation |
+|---|---|---|
+| Idle/Home | 🛋️ | Default when no location movement |
+| Studying | 🎓 | Manual or geofence near library |
+| In Class | 📚 | Geofence near academic buildings |
+| Gym | 💪 | Geofence near rec center |
+| Date Night | ❤️ | Manual toggle |
+| Working | 💼 | Manual toggle |
+| Rallying | 📯 | Auto when moving toward bar during live event |
+| In Battle | ⚔️ | Auto when checked in during Shots Fired/War |
+| Prison Suit | 🔒 | Manual — can't go out tonight |
+| Spectating | 👀 | Watching from afar |
+
+**DAU driver:** Students open the app Monday morning to see who's studying, who's at the gym, who's on a date. The app becomes ambient — always relevant, not just Thu–Sat nights.
+
+### Layer 2: Squad Skins ($1.99–$3.99)
+Organizational identity. Greek org crests, Hessian Company customs, Regiment insignias.
+
+**The viral transition:** When a student crosses into the War Zone geofence (300m radius around the Square), their status skin automatically transitions to their squad skin. Prison Suit dissolving into Kappa Sig battle gear — that animation IS the TikTok moment. Students will screen-record it.
+
+### Layer 3: Deception Skins ($4.99 rental, 8 hours)
+Tactical espionage layer for advanced players.
+
+| Skin | Price | Effect | Restriction |
+|---|---|---|---|
+| False Flag | $4.99/night | Wear a rival org's skin on the map | None |
+| Ghost Cloak | $4.99/night | Completely invisible on map | Spies/Mercs only |
+| Decoy | $2.99/night | Your icon appears at a fake location | None |
+| Doppelganger | $3.99/night | Creates a second fake icon of you at another bar | Mercenaries only |
+
+**Counter-intel:** Mole Scanner ($9.99 one-time per event) reveals all False Flag skins within 200m. Creates an arms race — deception vs detection. Both sides spend money. Platform wins either way.
+
+### Layer 4: Earned/Legacy Skins (Free — Must Earn)
+Cannot be purchased. Status symbols that outlast graduation.
+
+| Skin | Icon | How to Earn |
+|---|---|---|
+| Scorched Earth Flame | 🔥 | Participate in Scorched Earth |
+| Champion Crown | 👑 | Win Scorched Earth |
+| Veteran Shield | 🛡️ | Win 10+ turf wars |
+| Mata Hari Mask | 🎭 | Get exposed as a Double Agent |
+| Quartermaster Star | ⭐ | Donate 10+ bracelets |
+| War Analyst Eye | 👁️ | 80%+ prediction accuracy over 20+ bets |
+| Founding Soldier | 🎖️ | Sign up during beta |
+
+### Seasonal/Limited Skins ($2.99, capped supply)
+- Homecoming Crown (500 max)
+- Bowl Game Warrior (500 max)
+- Scarcity drives urgency. Sold out = gone forever.
+
+### Live Radar
+The War Map shows every active user's skin icon in real-time:
+- Clusters form at bars (24px badge with count)
+- Groups move between venues
+- Rallying users show directional movement trails
+- In-battle users pulse with a glow
+- **Reinforcements alert:** 5+ users with the same squad skin rallying toward the Square triggers a platform-wide banner: "⚔️ Reinforcements incoming — 8 Kappa Sig soldiers approaching the Square"
+- Privacy toggle: eye icon in top-right hides/shows radar
+- War Zone boundary: dashed violet circle around the Square at 20% opacity
+
+### Skin Revenue Math (Single Campus, 1,000 Active Users)
+- 60% buy Squad Skin: 600 × $2 = $1,200
+- 20% buy Deception Skin monthly: 200 × $5 × 4 months = $4,000
+- 10% buy Mole Scanner: 100 × $10 = $1,000
+- Seasonal skins: 300 × $3 = $900
+- **Semester total per campus: ~$7,100 (zero COGS)**
+- At 20 campuses: $142K/year in skins alone
+
+---
+
+## War Comms — In-App Communication System
+
+Real-time text channels that keep coordination, strategy, and trash talk inside the platform.
+
+### Channel Types
+
+| Channel | Access | Purpose | Vibe |
+|---|---|---|---|
+| **War Room** | Org members only | Attack planning, rally calls, treasury votes | Private strategy room |
+| **Hessian Company** | Company members | Contract discussion, ambush coordination | Mercenary briefing |
+| **Battlefield** | Everyone at bar during live event | Real-time reactions, trash talk, chaos | Public arena — the content engine |
+| **Spy Channel** | Spy + handler | Intel drops, mission updates | Encrypted whispers |
+| **Direct** | Two users | Private messages | 1-on-1 |
+
+### Special Message Types
+- **Rally Call (📯 amber highlight):** Full-width urgent card. "EVERYONE TO THE LIBRARY NOW." Cuts through the noise.
+- **Intel Drop (👁️ cyan border):** Marked as spy intelligence. "KA has 40 inside Funky's. They're about to fire."
+
+### Why Comms Matter
+Without in-app comms, coordination happens in GroupMe, iMessage, Snapchat. Every time a user leaves BarWars to text their chapter president, the platform loses engagement minutes and loses data on how the war is being fought. Owning the coordination layer is the difference between a game and a companion app.
+
+### Battlefield = TikTok Content Engine
+200 students in one chat during a live Shots Fired event. The trash talk becomes screenshots, becomes posts, becomes organic marketing. "KA just showed up with 30 deep, Sigma Chi you're done" — that's free content.
+
+### What's NOT at Launch
+- **No voice channels** — bars are loud, moderation is impossible, battery drain kills phones on a night out. Text only at launch. Voice channels post-beta.
+- **No global channel** — 1,000+ college students + alcohol + anonymous global chat = liability in 48 hours. Scoped channels keep groups small enough to self-police.
+
+### Chat Intelligence Layer
+If coordination happens in-app, the platform sees patterns: "KA always rallies 30 minutes before an attack." A Bar Asset spy in the Battlefield chat is leaking real-time intel to a rival org's War Room. Gameplay emerges from the chat system itself.
 
 ---
 
@@ -248,7 +363,7 @@ Key insight: Physical presence = natural fraud ceiling. Two phones, one body.
 | Battle Bond Sales | Org → Platform | 15% take on every purchase |
 | Bar Subscriptions | Bar → Platform | $199–$499/month for admin dashboard, analytics, turf config |
 | Surge Event Fees | Org → Bar (platform 10-15%) | $50–$150 per Shots Fired declaration |
-| War Bond Premium | Player → Platform | Cosmetic upgrades, accelerated Valor earning, $2.99–$9.99 |
+| Skins & Cosmetics | Player → Platform | $1.99–$9.99 microtransactions, zero COGS |
 
 ### Tier 2 — Data & Insights
 | Stream | Description |
@@ -271,13 +386,12 @@ Key insight: Physical presence = natural fraud ceiling. Two phones, one body.
 |---|---|
 | In-Feed Native Ads | CPM model, campus-adjacent brands, format-native |
 | Promoted Venue | Bar pays for featured War Map pin + feed position |
-| Greek Vendor Marketplace | 5-8% on transactions (future) |
 
 ### Pilot Strategy — Free to Start
 - Bar subscriptions free through pilot. Hard expiration date, analytics prove value.
 - Seed each bar with 500 Valor Bonds for redemption menu testing.
 - Seed each Greek org with 100 Battle Bonds for first Shots Fired.
-- Battle Bond purchases are real money from day one.
+- Battle Bond purchases + skin sales are real money from day one.
 
 ---
 
@@ -317,14 +431,17 @@ Key insight: Physical presence = natural fraud ceiling. Two phones, one body.
 | Hosting | Bolt.new (dev) → Vercel (production) |
 | Database | Supabase (PostgreSQL) — project `qjsayygivxpiktblcpec` |
 | Auth | Supabase Auth (email + .edu verification) |
-| Maps | Mapbox GL JS (dark-v11 + 3D buildings) |
-| Payments | Stripe (Battle Bond purchases) |
+| Maps | Mapbox GL JS (dark-v11 + 3D buildings + live radar) |
+| Payments | Stripe (Battle Bond purchases + skin sales) |
 | Push | Firebase Cloud Messaging |
 | SMS | Twilio (OTP + velocity checks) |
+| Realtime | Supabase Realtime (War Comms, live radar) |
 | Edge Functions | 10 deployed (Supabase Edge Functions / Deno) |
-| Schema | 66+ tables, 35 migrations |
+| Native | Capacitor 8.5 (iOS + Android) |
+| CI/CD | Codemagic (auto-build → TestFlight + Google Play) |
+| Schema | 77 tables, 37 migrations |
 
-### Edge Functions
+### Edge Functions (10 deployed)
 | Function | Purpose |
 |---|---|
 | process-score-event | Score check-ins during live challenges |
@@ -340,19 +457,36 @@ Key insight: Physical presence = natural fraud ceiling. Two phones, one body.
 
 ---
 
-## App Pages
+## App Pages (9 routes)
 
 | Route | Purpose |
 |---|---|
-| `/` | Home — War Map, Battle Feed, Standings, Active Flares |
-| `/turf-wars` | Turf Wars — claims, attacks, defense |
+| `/` | Home — War Map with live radar, Battle Feed, Standings, Active Flares |
+| `/turf-wars` | Turf Wars — claims, attacks, defense, embedded War Map |
 | `/bracelet-hunt` | Scavenger Hunt — active clues, QR scan, keep/donate |
 | `/armory` | Armory — claim donated bracelets |
 | `/predictions` | War Room Intel — daily/weekly/season predictions |
-| `/ambassador` | Ambassador enrollment + referral dashboard |
-| `/account` | User profile, War Bond wallet, settings |
-| `/bar-admin` | Bar Command Center — flares, bracelets, specials, redemptions, analytics |
-| `/drops` | Mystery Drops — legacy queue system |
+| `/skins` | War Locker — browse, buy, rent, equip skins |
+| `/comms` | War Comms — channels, messages, rally calls, intel drops |
+| `/account` | User profile, War Bond wallet, Bar Command Center link |
+| `/bar-admin` | Bar Command Center — flares (fog of war), bracelets, war specials, redemptions, analytics |
+
+### Bottom Navigation
+TONIGHT · TURF WARS · HUNT · ARMORY · LOCKER · ACCOUNT
+
+---
+
+## Native App Distribution
+
+| Platform | Status | Channel |
+|---|---|---|
+| iOS | Build 2 on TestFlight | TestFlight internal testing |
+| Android | APK built (7.59 MB) | Google Play Internal Testing (pending) |
+
+Capacitor 8.5 wraps the live web app. Content updates deploy instantly (no App Store resubmission). Native binary updates only needed for new plugin functionality.
+
+### CI/CD Pipeline
+Push to `main` → Codemagic auto-builds → iOS IPA signed with Apple Distribution cert → Uploaded to App Store Connect → TestFlight. Android APK built in parallel. No Mac required.
 
 ---
 
@@ -365,3 +499,5 @@ The freshman who doesn't know anyone becomes the platform's most valuable asset.
 ---
 
 *The war is the product. Every mechanic drives foot traffic. Every event creates a story. Every story builds the platform.*
+
+*Nightlife Never Dies.*
