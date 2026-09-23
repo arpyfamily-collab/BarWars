@@ -6,7 +6,7 @@ workflows:
       app_store_connect: Codemagic Admin
     environment:
       ios_signing:
-        distribution_type: development
+        distribution_type: app_store
         bundle_identifier: com.arpyfamily.barwars
       node: 22.0.0
       xcode: latest
