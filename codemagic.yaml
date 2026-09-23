@@ -19,18 +19,15 @@ workflows:
         script: xcode-project use-profiles
       - name: Build iOS
         script: |
-          cd ios/App
-          xcodebuild -project App.xcodeproj \
-            -scheme App \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -archivePath build/App.xcarchive \
-            archive \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+          xcode-project build-ipa \
+            --project "ios/App/App.xcodeproj" \
+            --scheme "App"
     artifacts:
-      - ios/App/build/**/*.xcarchive
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
 
 
   android-build:
