@@ -17,6 +17,12 @@ workflows:
         script: npx cap sync ios
       - name: Set up code signing
         script: xcode-project use-profiles
+      - name: Set build number (latest TestFlight build + 1)
+        script: |
+          LATEST=$(app-store-connect get-latest-testflight-build-number "6814906556" || echo 2)
+          NEXT=$((LATEST + 1))
+          echo "Setting CFBundleVersion to $NEXT"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEXT" ios/App/App/Info.plist
       - name: Build iOS
         script: |
           xcode-project build-ipa \
