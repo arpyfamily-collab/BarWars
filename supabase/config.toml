@@ -54,3 +54,16 @@ schedule = "*/5 * * * *"
 [functions.turf-war-scheduler]
 verify_jwt = false
 schedule = "*/5 * * * *"
+
+[functions.bracelet-scan]
+verify_jwt = false
+
+[functions.flare-fire]
+verify_jwt = false
+
+[functions.bracelet-test-reset]
+verify_jwt = false
+schedule = "0 */6 * * *"
+
+[functions.delete-account]
+verify_jwt = false

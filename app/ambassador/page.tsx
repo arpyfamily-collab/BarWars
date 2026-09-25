@@ -63,15 +63,21 @@ export default function AmbassadorPage() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://barwars.app'
 
   async function load() {
-    const res  = await fetch('/api/ambassador/me')
-    const data = await res.json()
-    if (data.ambassador) {
-      setAmbassador(data.ambassador)
-      setComp(data.compensation ?? [])
-      const url = `${appUrl}/?ref=${data.ambassador.referral_code}`
-      generateQRDataURL(url).then(setQrUrl)
+    try {
+      const res = await fetch('/api/ambassador/me')
+      if (!res.ok) throw new Error('Failed to load ambassador data')
+      const data = await res.json()
+      if (data.ambassador) {
+        setAmbassador(data.ambassador)
+        setComp(data.compensation ?? [])
+        const url = `${appUrl}/?ref=${data.ambassador.referral_code}`
+        generateQRDataURL(url).then(setQrUrl)
+      }
+    } catch {
+      // Not enrolled or network error — show enrollment state
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   useEffect(() => { load() }, [])
@@ -136,7 +142,7 @@ export default function AmbassadorPage() {
           </div>
           <div style={{ marginBottom: 12 }}>
             <label>Greek chapter (optional)</label>
-            <input className="input" style={{ marginTop: 4 }} placeholder="e.g. Kappa Delta" value={chapter} onChange={e => setChapter(e.target.value)} />
+            <input className="input" style={{ marginTop: 4 }} placeholder="e.g. Alpha House" value={chapter} onChange={e => setChapter(e.target.value)} />
           </div>
           <button className="btn btn-primary" onClick={enroll} disabled={enrolling}>
             {enrolling ? 'Enrolling…' : 'Become an ambassador'}

@@ -268,7 +268,7 @@ export default function DropsPage() {
             <div style={{ fontSize: 36, marginBottom: 10 }}>⏰</div>
             <div style={{ fontWeight: 600, marginBottom: 6 }}>Drop is live — queue closed</div>
             <div style={{ fontSize: 13, color: 'var(--bw-muted)' }}>
-              The waiting room closed at drop time. Catch the next one — Library Card holders get in 5 minutes early.
+              The waiting room closed at drop time. Catch the next one tomorrow.
             </div>
           </div>
         )}
@@ -304,9 +304,7 @@ export default function DropsPage() {
                 <button className="btn btn-primary" onClick={joinQueue} disabled={joining} style={{ fontSize: 16, padding: '16px' }}>
                   {joining ? 'Joining…' : 'Join the queue'}
                 </button>
-                <div style={{ fontSize: 12, color: 'var(--bw-muted)', textAlign: 'center', marginTop: 8 }}>
-                  Library Card holders got in 5 min early
-                </div>
+
               </div>
             )}
           </>

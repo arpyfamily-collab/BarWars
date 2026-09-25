@@ -658,7 +658,7 @@ export default function SpyNetworkPage() {
                   <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                     <div style={{ flex: 1 }}>
                       <label style={{ fontSize: 12, fontWeight: 600 }}>Orgs Present</label>
-                      <input className="input" value={ghostOrgs} onChange={e => setGhostOrgs(e.target.value)} placeholder="e.g. Sigma Chi, Alpha Phi" style={{ marginTop: 6 }} />
+                      <input className="input" value={ghostOrgs} onChange={e => setGhostOrgs(e.target.value)} placeholder="e.g. Kappa Manor, The Cabana" style={{ marginTop: 6 }} />
                     </div>
                     <div style={{ width: 100 }}>
                       <label style={{ fontSize: 12, fontWeight: 600 }}>Headcount</label>

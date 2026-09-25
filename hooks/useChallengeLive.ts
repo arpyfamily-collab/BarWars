@@ -147,7 +147,7 @@ export function useChallengeLive(
       // Recent score events (last 15)
       const { data: events } = await supabase
         .from('challenge_score_events')
-        .select('id, bar_id, event_type, points, occurred_at, profiles!inner(full_name)')
+        .select('id, bar_id, event_type, points, occurred_at, profiles(full_name)')
         .eq('challenge_id', challengeId)
         .order('occurred_at', { ascending: false })
         .limit(15)
@@ -158,7 +158,7 @@ export function useChallengeLive(
         event_type:  e.event_type,
         points:      e.points,
         occurred_at: e.occurred_at,
-        patron_name: e.profiles?.full_name,
+        patron_name: e.profiles?.full_name ?? 'Deleted user',
       })))
 
       // Participant counts

@@ -89,7 +89,7 @@ export function useWarRoom(
       // Active battle cry
       const { data: cry } = await supabase
         .from('battle_cries')
-        .select('cry, profiles!inner(full_name), set_at')
+        .select('cry, profiles(full_name), set_at')
         .eq('challenge_id', challengeId)
         .eq('bar_id', barId)
         .single()
@@ -97,7 +97,7 @@ export function useWarRoom(
       if (cry) {
         setBattleCryState({
           cry:          (cry as any).cry,
-          display_name: (cry as any).profiles?.full_name ?? 'Unknown',
+          display_name: (cry as any).profiles?.full_name ?? 'Deleted user',
           set_at:       (cry as any).set_at,
         })
       }
@@ -105,7 +105,7 @@ export function useWarRoom(
       // Top 5 fighters for this bar
       const { data: fighters } = await supabase
         .from('challenge_participants')
-        .select('user_id, points_contributed, profiles!inner(full_name)')
+        .select('user_id, points_contributed, profiles(full_name)')
         .eq('challenge_id', challengeId)
         .eq('chosen_bar_id', barId)
         .eq('was_checked_in', true)
@@ -115,7 +115,7 @@ export function useWarRoom(
       if (fighters) {
         setTopFighters(fighters.map((f: any) => ({
           user_id:            f.user_id,
-          display_name:       f.profiles?.full_name ?? 'Fighter',
+          display_name:       f.profiles?.full_name ?? 'Deleted user',
           points_contributed: f.points_contributed,
         })))
       }

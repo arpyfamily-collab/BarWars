@@ -61,7 +61,7 @@ export async function GET(
   // Last 10 score events (for momentum log)
   const { data: recentEvents } = await service
     .from('challenge_score_events')
-    .select('event_type, points, bar_id, occurred_at, profiles!inner(full_name)')
+    .select('event_type, points, bar_id, occurred_at, profiles(full_name)')
     .eq('challenge_id', params.id)
     .order('occurred_at', { ascending: false })
     .limit(10)

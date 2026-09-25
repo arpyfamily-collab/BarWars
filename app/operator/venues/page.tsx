@@ -11,7 +11,7 @@ export default async function OperatorVenuesPage() {
     .select(`
       id, name, slug, total_capacity,
       wins, losses, current_streak, forfeit_unpaid_count,
-      bar_admins(user_id, profiles!inner(full_name, id))
+      bar_admins(user_id, profiles(full_name, id))
     `)
     .order('wins', { ascending: false })
 
@@ -76,7 +76,7 @@ export default async function OperatorVenuesPage() {
                     {admins.map((a: any) => (
                       <AdminChip
                         key={a.user_id}
-                        name={a.profiles?.full_name ?? a.user_id}
+                        name={a.profiles?.full_name ?? 'Deleted user'}
                         venueId={v.id}
                         userId={a.user_id}
                       />

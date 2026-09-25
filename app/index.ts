@@ -75,21 +75,6 @@ export interface Pass {
   created_at: string
 }
 
-export interface LibraryCardSubscription {
-  id: string
-  user_id: string
-  venue_id: string
-  stripe_subscription_id: string
-  stripe_customer_id: string
-  status: 'active' | 'paused' | 'cancelled'
-  current_period_start: string
-  current_period_end: string
-  billing_paused: boolean
-  passes_remaining_this_month: number
-  passes_per_month: number
-  created_at: string
-}
-
 export interface ScanResult {
   success: boolean
   message: string

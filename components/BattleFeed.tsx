@@ -21,6 +21,67 @@ interface LeaderboardEntry {
   rank: number
 }
 
+const DEMO_FEED: FeedEvent[] = [
+  {
+    id: 'demo-1',
+    event_type: 'shots_fired',
+    bar_name: "Funky's Night Club",
+    org_name: 'Alpha House',
+    rival_org_name: 'Kappa Manor',
+    created_at: new Date(Date.now() - 2 * 60_000).toISOString(),
+  },
+  {
+    id: 'demo-2',
+    event_type: 'claim_announced',
+    bar_name: 'The Library Sports Bar',
+    org_name: 'Kappa Manor',
+    rival_org_name: null,
+    created_at: new Date(Date.now() - 18 * 60_000).toISOString(),
+  },
+  {
+    id: 'demo-3',
+    event_type: 'war_declared',
+    bar_name: 'Velvet Ditch',
+    org_name: 'Omega Lodge',
+    rival_org_name: 'The Towers',
+    created_at: new Date(Date.now() - 45 * 60_000).toISOString(),
+  },
+  {
+    id: 'demo-4',
+    event_type: 'turf_defended',
+    bar_name: "Harrison's / The Yard",
+    org_name: 'The Towers',
+    rival_org_name: null,
+    created_at: new Date(Date.now() - 2 * 3600_000).toISOString(),
+  },
+  {
+    id: 'demo-5',
+    event_type: 'rally_called',
+    bar_name: 'Donut Rooftop',
+    org_name: 'The Cabana',
+    rival_org_name: null,
+    created_at: new Date(Date.now() - 3 * 3600_000).toISOString(),
+  },
+  {
+    id: 'demo-6',
+    event_type: 'sneak_attack_detected',
+    bar_name: "Funky's Night Club",
+    org_name: 'The Barracks',
+    rival_org_name: 'Alpha House',
+    created_at: new Date(Date.now() - 5 * 3600_000).toISOString(),
+  },
+]
+
+const DEMO_STANDINGS: LeaderboardEntry[] = [
+  { org_id: 'demo-s1', org_name: 'Kappa Manor',     org_type: 'fraternity', war_score: 2840, bars_held: 2, rank: 1 },
+  { org_id: 'demo-s2', org_name: 'Alpha House',     org_type: 'fraternity', war_score: 2215, bars_held: 1, rank: 2 },
+  { org_id: 'demo-s3', org_name: 'The Cabana',       org_type: 'sorority',   war_score: 1890, bars_held: 1, rank: 3 },
+  { org_id: 'demo-s4', org_name: 'Omega Lodge',      org_type: 'fraternity', war_score: 1475, bars_held: 0, rank: 4 },
+  { org_id: 'demo-s5', org_name: 'The Towers',       org_type: 'fraternity', war_score: 1320, bars_held: 1, rank: 5 },
+  { org_id: 'demo-s6', org_name: 'The Barracks',     org_type: 'fraternity', war_score: 980,  bars_held: 0, rank: 6 },
+  { org_id: 'demo-s7', org_name: 'The Bungalow',     org_type: 'sorority',   war_score: 870,  bars_held: 0, rank: 7 },
+]
+
 const EVENT_CONFIG: Record<string, { icon: typeof Flame; color: string; label: (e: FeedEvent) => string }> = {
   shots_fired: {
     icon: Flame, color: '#E03131',
@@ -81,18 +142,18 @@ function FeedTab() {
 
   if (loading) return <div style={{ fontSize: 13, color: 'var(--bw-muted)', padding: '16px 0' }}>Loading feed…</div>
 
-  if (events.length === 0) {
-    return (
-      <div style={{ padding: '24px 0', textAlign: 'center' }}>
-        <div style={{ fontSize: 24, marginBottom: 8 }}>🕊️</div>
-        <div style={{ fontSize: 13, color: 'var(--bw-muted)' }}>The battlefield is quiet for now.</div>
-      </div>
-    )
-  }
+  const displayEvents = events.length > 0 ? events : DEMO_FEED
+  const isDemo = events.length === 0
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {events.map(event => {
+    <div>
+      {isDemo && (
+        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--bw-violet-soft)', textAlign: 'center', marginBottom: 10, textTransform: 'uppercase' }}>
+          Preview — live events will appear here
+        </div>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {displayEvents.map(event => {
         const cfg = EVENT_CONFIG[event.event_type]
         if (!cfg) return null
         const Icon = cfg.icon
@@ -118,7 +179,8 @@ function FeedTab() {
             </div>
           </div>
         )
-      })}
+        })}
+      </div>
     </div>
   )
 }
@@ -136,20 +198,20 @@ function StandingsTab() {
 
   if (loading) return <div style={{ fontSize: 13, color: 'var(--bw-muted)', padding: '16px 0' }}>Loading standings…</div>
 
-  if (entries.length === 0) {
-    return (
-      <div style={{ padding: '24px 0', textAlign: 'center' }}>
-        <div style={{ fontSize: 24, marginBottom: 8 }}>🏆</div>
-        <div style={{ fontSize: 13, color: 'var(--bw-muted)' }}>No orgs on the board yet.</div>
-      </div>
-    )
-  }
+  const displayEntries = entries.length > 0 ? entries : DEMO_STANDINGS
+  const isDemo = entries.length === 0
 
   const rankColors: Record<number, string> = { 1: '#C9A84C', 2: '#8B9BB4', 3: '#CD7F32' }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {entries.map(entry => (
+    <div>
+      {isDemo && (
+        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--bw-violet-soft)', textAlign: 'center', marginBottom: 10, textTransform: 'uppercase' }}>
+          Preview — live standings will appear here
+        </div>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {displayEntries.map(entry => (
         <div key={entry.org_id} style={{
           display: 'flex', alignItems: 'center', gap: 12,
           background: entry.rank === 1 ? 'rgba(201,168,76,0.06)' : '#0D1117',
@@ -193,6 +255,7 @@ function StandingsTab() {
       <div style={{ fontSize: 10, color: '#2A3350', textAlign: 'center', paddingTop: 4 }}>
         Rolling 7-day standings · Resets Monday midnight CT
       </div>
+      </div>
     </div>
   )
 }
@@ -204,7 +267,7 @@ export default function BattleFeed() {
     flex: 1, padding: '8px 0',
     background: active ? '#161B27' : 'transparent',
     border: 'none',
-    borderBottom: `2px solid ${active ? 'var(--bw-gold)' : 'transparent'}`,
+    borderBottom: `2px solid ${active ? 'var(--bw-violet)' : 'transparent'}`,
     color: active ? '#F0F0F0' : 'var(--bw-muted)',
     fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
     cursor: 'pointer', transition: 'all 0.15s',

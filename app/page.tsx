@@ -2,8 +2,11 @@ import { createClient } from '@/lib/supabase-client'
 import CapacityMeter from '@/components/CapacityMeter'
 import BottomNav from '@/components/BottomNav'
 import TurfMap from '@/components/TurfMap'
+import ActiveFlare from '@/components/ActiveFlare'
+import ReinforcementsAlert from '@/components/ReinforcementsAlert'
 import BattleFeed from '@/components/BattleFeed'
 import ContextFAB from '@/components/ContextFAB'
+import CommsFAB from '@/components/CommsFAB'
 import Link from 'next/link'
 import { Flame, Shield } from 'lucide-react'
 import { NIGHT_TIER_LABELS } from '@/types'
@@ -57,7 +60,7 @@ export default async function HomePage() {
           )}
         </div>
         <div style={{ fontSize: 13, color: 'var(--bw-muted)' }}>
-          Skip the line. Own the night.
+          Nightlife Never Dies.
         </div>
       </div>
 
@@ -75,6 +78,16 @@ export default async function HomePage() {
 
         {/* ── War Map ─────────────────────────────────────────── */}
         <TurfMap />
+
+        {/* ── Reinforcements Alert ────────────────────────────── */}
+        <div style={{ marginTop: 12 }}>
+          <ReinforcementsAlert />
+        </div>
+
+        {/* ── Active Flare Banner ────────────────────────────── */}
+        <div style={{ marginTop: 12 }}>
+          <ActiveFlare />
+        </div>
 
         {/* ── War Chest Carousel ──────────────────────────────── */}
         {events && events.length > 0 && (
@@ -176,6 +189,7 @@ export default async function HomePage() {
 
       </div>
 
+      <CommsFAB />
       <ContextFAB />
       <BottomNav />
     </div>

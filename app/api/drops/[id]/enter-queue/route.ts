@@ -21,26 +21,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'Queue is not open' }, { status: 422 })
   }
 
-  // Library Card holders can enter 5 minutes early
-  const { data: cardSub } = await service
-    .from('library_card_subscriptions')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('status', 'active')
-    .single()
+  const queueOpensAt = new Date((drop as any).queue_opens_at)
+  const now          = new Date()
 
-  const isCardHolder    = !!cardSub
-  const queueOpensAt    = new Date((drop as any).queue_opens_at)
-  const earlyAccessTime = new Date(queueOpensAt.getTime() - 5 * 60 * 1000)
-  const now             = new Date()
-
-  if (!isCardHolder && now < queueOpensAt) {
+  if (now < queueOpensAt) {
     const secsUntilOpen = Math.ceil((queueOpensAt.getTime() - now.getTime()) / 1000)
     return NextResponse.json({ error: `Queue opens in ${secsUntilOpen}s`, opens_at: (drop as any).queue_opens_at }, { status: 425 })
-  }
-
-  if (isCardHolder && now < earlyAccessTime) {
-    return NextResponse.json({ error: 'Too early even for Library Card', opens_at: earlyAccessTime.toISOString() }, { status: 425 })
   }
 
   const { data: entry, error } = await service
@@ -63,5 +49,5 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ entry, is_card_holder: isCardHolder }, { status: 201 })
+  return NextResponse.json({ entry }, { status: 201 })
 }

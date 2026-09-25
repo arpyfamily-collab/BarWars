@@ -5,8 +5,6 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   typescript: true,
 })
 
-export const LIBRARY_CARD_PRICE_CENTS = 4999
-
 export const SUMMER_MONTHS = [5, 6, 7]
 
 export function isSummerMonth(date = new Date()): boolean {

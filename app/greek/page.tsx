@@ -130,7 +130,7 @@ export default function GreekOrgPage() {
 
             <div style={{ marginBottom: 16 }}>
               <label>Org Name</label>
-              <input className="input" value={orgName} onChange={e => setOrgName(e.target.value)} placeholder="e.g. Kappa Delta, Sigma Chi" />
+              <input className="input" value={orgName} onChange={e => setOrgName(e.target.value)} placeholder="e.g. Alpha House, Kappa Manor" />
             </div>
 
             <div style={{ marginBottom: 20 }}>

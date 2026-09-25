@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
+import TurfMap from '@/components/TurfMap'
 import { Crosshair, Shield, Swords, MapPin, Flame, ChevronRight, Zap, Clock, Skull, Users, Eye } from 'lucide-react'
 
 interface ActiveClaim {
@@ -293,8 +294,8 @@ export default function TurfWarsPage() {
               )
             })}
             {activeClaims.length === 0 && (
-              <div className="card" style={{ textAlign: 'center', padding: 28, color: 'var(--bw-muted)', fontSize: 13 }}>
-                No active battles right now.
+              <div style={{ marginBottom: 8 }}>
+                <TurfMap />
               </div>
             )}
           </div>

@@ -91,12 +91,6 @@ Deno.serve(async (req: Request) => {
     sentCount = recipientIds.length  // assume sent for pipeline continuity
   }
 
-  // ── Send SMS for high-priority triggers to Library Card holders ──────────
-  const smsEligibleTriggers = ['war_declared', 'winner_declared', 'battle_boost']
-  if (smsEligibleTriggers.includes(trigger)) {
-    await sendSmsToCardHolders(supabase, recipientIds, headline, deepLink)
-  }
-
   // ── Mark notification sent ───────────────────────────────────────────────
   await markSent(supabase, challenge_id, trigger, sentCount)
 
@@ -258,58 +252,6 @@ async function sendFcmBatch(
   }
 
   return sent
-}
-
-// ── Twilio SMS for Library Card holders ──────────────────────────────────────
-
-async function sendSmsToCardHolders(
-  supabase:     ReturnType<typeof createClient>,
-  userIds:      string[],
-  message:      string,
-  deepLink:     string
-): Promise<void> {
-  const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID')
-  const authToken  = Deno.env.get('TWILIO_AUTH_TOKEN')
-  const fromNumber = Deno.env.get('TWILIO_FROM_NUMBER')
-
-  if (!accountSid || !authToken || !fromNumber) return
-
-  // Only Library Card holders with active subscriptions and a phone number
-  const { data: cardHolders } = await supabase
-    .from('library_card_subscriptions')
-    .select('user_id, profiles(phone)')
-    .in('user_id', userIds)
-    .eq('status', 'active')
-
-  if (!cardHolders?.length) return
-
-  const appUrl = Deno.env.get('NEXT_PUBLIC_APP_URL') ?? 'https://barwars.app'
-  const smsBody = `${message} ${appUrl}${deepLink}`
-
-  for (const holder of cardHolders as any[]) {
-    const phone = holder.profiles?.phone
-    if (!phone) continue
-
-    try {
-      await fetch(
-        `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-        {
-          method:  'POST',
-          headers: {
-            'Authorization': `Basic ${btoa(`${accountSid}:${authToken}`)}`,
-            'Content-Type':  'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-            To:   phone,
-            From: fromNumber,
-            Body: smsBody.slice(0, 160),  // SMS character limit
-          }),
-        }
-      )
-    } catch (err) {
-      console.error('[challenge-notifications] Twilio error:', err)
-    }
-  }
 }
 
 // ── Mark notification sent ────────────────────────────────────────────────────

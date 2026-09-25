@@ -1,11 +1,13 @@
 /**
  * middleware.ts (root level)
  *
- * Guards /operator/* routes — only profiles.is_staff = true can enter.
+ * Guards:
+ *   /operator/*   — only profiles.is_staff = true
+ *   /bar-admin/*  — user must have at least one row in bar_admins
+ *
  * Also handles the Supabase session refresh on every request.
  */
-
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function middleware(req: NextRequest) {
@@ -16,16 +18,17 @@ export async function middleware(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) { return req.cookies.get(name)?.value },
-        set(name: string, value: string, options: CookieOptions) {
-          req.cookies.set({ name, value, ...options })
-          res = NextResponse.next({ request: { headers: req.headers } })
-          res.cookies.set({ name, value, ...options })
+        getAll() {
+          return req.cookies.getAll()
         },
-        remove(name: string, options: CookieOptions) {
-          req.cookies.set({ name, value: '', ...options })
+        setAll(cookiesToSet: { name: string; value: string; options: Record<string, unknown> }[]) {
+          cookiesToSet.forEach(({ name, value }) => {
+            req.cookies.set(name, value)
+          })
           res = NextResponse.next({ request: { headers: req.headers } })
-          res.cookies.set({ name, value: '', ...options })
+          cookiesToSet.forEach(({ name, value, options }) => {
+            res.cookies.set(name, value, options as any)
+          })
         },
       },
     }
@@ -33,13 +36,14 @@ export async function middleware(req: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
+  const path = req.nextUrl.pathname
+
   // Protect /operator routes
-  if (req.nextUrl.pathname.startsWith('/operator')) {
+  if (path.startsWith('/operator')) {
     if (!user) {
       return NextResponse.redirect(new URL('/login?next=/operator', req.url))
     }
 
-    // Check is_staff via a lightweight RPC rather than a full profile fetch
     const { data: profile } = await supabase
       .from('profiles')
       .select('is_staff')
@@ -51,9 +55,26 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // Protect /bar-admin routes
+  if (path.startsWith('/bar-admin')) {
+    if (!user) {
+      return NextResponse.redirect(new URL('/login?next=/bar-admin', req.url))
+    }
+
+    const { data: memberships } = await supabase
+      .from('bar_admins')
+      .select('bar_id')
+      .eq('user_id', user.id)
+      .limit(1)
+
+    if (!memberships || memberships.length === 0) {
+      return NextResponse.redirect(new URL('/?err=not_bar_admin', req.url))
+    }
+  }
+
   return res
 }
 
 export const config = {
-  matcher: ['/operator/:path*'],
+  matcher: ['/operator/:path*', '/bar-admin/:path*'],
 }

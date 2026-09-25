@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'BarWars',
   webDir: 'out',
   server: {
-    url: 'https://barwars-codebase-int-yu8l.bolt.host',
+    url: 'https://app.barwars.app',
     cleartext: false,
   },
 };

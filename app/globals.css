@@ -1,16 +1,42 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap');
 
 :root {
-  --bw-black:    #0D0D0D;
-  --bw-surface:  #161616;
-  --bw-card:     #1E1E1E;
-  --bw-border:   #2A2A2A;
-  --bw-gold:     #F5B800;
-  --bw-gold-dim: #A37B00;
+  /* Base (60%) — Midnight Black + Deep War Room */
+  --bw-black:    #0A0A0C;
+  --bw-surface:  #0D1117;
+  --bw-card:     #13171F;
+  --bw-border:   #1C2333;
+
+  /* Brand */
+  --bw-gold:     #C9A84C;
+  --bw-gold-dim: #8B7434;
+
+  /* Secondary (25%) — Electric Violet for Greek life / status */
+  --bw-violet:      #7B2CBF;
+  --bw-violet-soft: #9D4EDD;
+  --bw-violet-glow: rgba(123, 44, 191, 0.15);
+
+  /* Tactical (5%) — Cyber Cyan for Hessians / intel / map */
+  --bw-cyan:      #00F5D4;
+  --bw-cyan-glow: rgba(0, 245, 212, 0.15);
+
+  /* Reward (5%) — Neon Yellow for War Bonds / bracelet drops */
+  --bw-yellow:      #E0FF00;
+  --bw-yellow-glow: rgba(224, 255, 0, 0.15);
+
+  /* Danger — Shots Fired / Active Attack */
   --bw-red:      #E03131;
+  --bw-red-glow: rgba(224, 49, 49, 0.15);
+
+  /* Status */
   --bw-green:    #2ECC71;
-  --bw-text:     #F0EDE6;
-  --bw-muted:    #888078;
+  --bw-flare:    #F5B800;
+
+  /* Text */
+  --bw-text:     #F0F0F0;
+  --bw-muted:    #8B9BB4;
+
+  /* Layout */
   --bw-radius:   10px;
   --bw-radius-lg: 16px;
 }
@@ -31,28 +57,32 @@ img { display: block; max-width: 100%; }
 .container { width: 100%; max-width: 480px; margin: 0 auto; padding: 0 20px; }
 .card { background: var(--bw-card); border: 1px solid var(--bw-border); border-radius: var(--bw-radius-lg); padding: 20px; }
 .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: 20px; }
-.badge-gold  { background: rgba(245,184,0,0.15);  color: var(--bw-gold); }
-.badge-red   { background: rgba(224,49,49,0.15);  color: var(--bw-red);  }
-.badge-green { background: rgba(46,204,113,0.15); color: var(--bw-green); }
-.badge-gray  { background: rgba(255,255,255,0.08); color: var(--bw-muted); }
+.badge-gold    { background: rgba(201,168,76,0.15);  color: var(--bw-gold); }
+.badge-violet  { background: var(--bw-violet-glow);   color: var(--bw-violet); }
+.badge-cyan    { background: var(--bw-cyan-glow);     color: var(--bw-cyan); }
+.badge-yellow  { background: var(--bw-yellow-glow);   color: var(--bw-yellow); }
+.badge-red     { background: var(--bw-red-glow);      color: var(--bw-red); }
+.badge-green   { background: rgba(46,204,113,0.15);   color: var(--bw-green); }
+.badge-flare   { background: rgba(245,184,0,0.12);    color: var(--bw-flare); }
+.badge-gray    { background: rgba(255,255,255,0.08);  color: var(--bw-muted); }
 
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 24px; border-radius: var(--bw-radius); font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; border: none; transition: opacity 0.15s, transform 0.1s; width: 100%; }
 .btn:active { transform: scale(0.98); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn-primary { background: var(--bw-gold); color: var(--bw-black); }
+.btn-primary { background: var(--bw-violet); color: #fff; }
 .btn-primary:hover:not(:disabled) { opacity: 0.9; }
 .btn-danger { background: var(--bw-red); color: #fff; }
 .btn-ghost { background: transparent; color: var(--bw-text); border: 1px solid var(--bw-border); }
 .btn-ghost:hover:not(:disabled) { background: rgba(255,255,255,0.05); }
 
 .input { width: 100%; background: var(--bw-surface); border: 1px solid var(--bw-border); border-radius: var(--bw-radius); color: var(--bw-text); font-size: 15px; padding: 12px 14px; outline: none; transition: border-color 0.15s; font-family: 'Inter', sans-serif; }
-.input:focus { border-color: var(--bw-gold); }
+.input:focus { border-color: var(--bw-violet); }
 .input::placeholder { color: var(--bw-muted); }
 label { display: block; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--bw-muted); margin-bottom: 6px; }
 
 .nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bw-surface); border-top: 1px solid var(--bw-border); display: flex; padding: 8px 0 max(8px, env(safe-area-inset-bottom)); z-index: 100; }
 .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--bw-muted); padding: 6px 0; cursor: pointer; transition: color 0.15s; }
-.nav-item.active { color: var(--bw-gold); }
+.nav-item.active { color: var(--bw-violet); }
 .nav-item svg { width: 22px; height: 22px; stroke-width: 1.8; }
 
 .capacity-track { height: 6px; background: var(--bw-border); border-radius: 3px; overflow: hidden; }
@@ -62,6 +92,7 @@ label { display: block; font-size: 12px; font-weight: 600; letter-spacing: 0.06e
 .capacity-fill.high   { background: var(--bw-red); }
 
 @keyframes pulse-border { 0%, 100% { border-color: var(--bw-red); } 50% { border-color: rgba(224,49,49,0.4); } }
+@keyframes pulse-flare { 0%, 100% { border-color: var(--bw-flare); } 50% { border-color: rgba(245,184,0,0.4); } }
 .fire-sale-banner { background: rgba(224,49,49,0.12); border: 1px solid var(--bw-red); border-radius: var(--bw-radius-lg); padding: 16px; animation: pulse-border 1.6s ease-in-out infinite; }
 
 .qr-container { background: #fff; border-radius: var(--bw-radius-lg); padding: 16px; display: flex; align-items: center; justify-content: center; }

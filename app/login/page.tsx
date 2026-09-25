@@ -13,6 +13,8 @@ function LoginForm() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [signupSuccess, setSignupSuccess] = useState(false)
+  const [ageConfirmed, setAgeConfirmed] = useState(false)
   const router = useRouter()
   const params = useSearchParams()
   const next = params.get('next') ?? '/account'
@@ -30,7 +32,7 @@ function LoginForm() {
     setError(null)
 
     const normalizedEmail = email.trim().toLowerCase()
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalizedEmail)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       setError('Enter a complete email address, such as you@example.com.')
       return
     }
@@ -38,12 +40,17 @@ function LoginForm() {
     setLoading(true)
 
     if (mode === 'signup') {
-      const { error } = await supabase.auth.signUp({ email: normalizedEmail, password })
+      const { error } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
+        options: { data: { age_confirmed_18: true } },
+      })
       if (error) {
         setError(error.message)
         setLoading(false)
       } else {
-        router.push(next)
+        setSignupSuccess(true)
+        setLoading(false)
       }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password })
@@ -109,8 +116,6 @@ function LoginForm() {
               placeholder="you@example.com"
               required
               autoComplete="email"
-              pattern="[^\\s@]+@[^\\s@]+\\.[^\\s@]+"
-              title="Enter a complete email address, such as you@example.com"
             />
           </div>
           <div>
@@ -136,10 +141,37 @@ function LoginForm() {
             </div>
           )}
 
-          <button type="submit" className="btn btn-primary" disabled={loading} style={{ marginTop: 4 }}>
+          {mode === 'signup' && (
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 12, color: 'var(--bw-text)', lineHeight: 1.5, cursor: 'pointer', marginTop: 4 }}>
+              <input
+                type="checkbox"
+                checked={ageConfirmed}
+                onChange={e => setAgeConfirmed(e.target.checked)}
+                style={{ marginTop: 2, flexShrink: 0, width: 18, height: 18, accentColor: 'var(--bw-gold)', cursor: 'pointer' }}
+              />
+              <span>
+                I&apos;m 18 or older and I agree to the{' '}
+                <a href="https://barwars.app/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--bw-gold)', textDecoration: 'underline' }}>Terms of Service</a>
+                {' '}and{' '}
+                <a href="https://barwars.app/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--bw-gold)', textDecoration: 'underline' }}>Privacy Policy</a>.
+              </span>
+            </label>
+          )}
+
+          <button type="submit" className="btn btn-primary" disabled={loading || (mode === 'signup' && !ageConfirmed)} style={{ marginTop: 4 }}>
             {loading ? <Loader2 size={18} className="animate-spin" /> : mode === 'signup' ? 'Create Account' : 'Sign In'}
           </button>
         </form>
+
+        {signupSuccess && (
+          <div style={{
+            fontSize: 13, color: 'var(--bw-gold)', background: 'rgba(245,184,0,0.1)',
+            border: '1px solid rgba(245,184,0,0.3)', borderRadius: 8, padding: '12px 14px',
+            textAlign: 'center', marginTop: 16,
+          }}>
+            Check your email to confirm your account, then sign in.
+          </div>
+        )}
       </div>
     </div>
   )

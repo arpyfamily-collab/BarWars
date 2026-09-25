@@ -2,7 +2,9 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
 import PushNotificationPrompt from '@/components/PushNotificationPrompt'
 import BottomNav from '@/components/BottomNav'
-import { Shield, ChevronRight } from 'lucide-react'
+import DeleteAccount from '@/components/DeleteAccount'
+import BlockedPlayers from '@/components/BlockedPlayers'
+import { Shield, ChevronRight, Zap, Sparkles } from 'lucide-react'
 
 export default async function AccountPage() {
   const supabase = createServerSupabaseClient()
@@ -13,12 +15,6 @@ export default async function AccountPage() {
     .from('profiles')
     .select('full_name, phone')
     .eq('id', user.id)
-    .single()
-
-  const { data: sub } = await supabase
-    .from('library_card_subscriptions')
-    .select('status, passes_remaining_this_month, billing_paused')
-    .eq('user_id', user.id)
     .single()
 
   const { data: badges } = await supabase
@@ -39,27 +35,19 @@ export default async function AccountPage() {
 
       <div className="page-content">
 
-        {/* Library Card status */}
-        {sub && (
-          <div className="card" style={{ borderColor: 'rgba(245,184,0,0.3)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* Bar Command Center */}
+        <a href="/bar-admin" style={{ display: 'block', textDecoration: 'none' }}>
+          <div className="card" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderLeft: '3px solid var(--bw-flare)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Zap size={20} style={{ color: 'var(--bw-flare)' }} />
               <div>
-                <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 20, letterSpacing: '0.04em', color: 'var(--bw-gold)' }}>
-                  Library Card
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--bw-muted)', marginTop: 2 }}>
-                  {(sub as any).billing_paused ? 'Summer mode — billing paused' : 'Active'}
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 28, color: 'var(--bw-gold)', lineHeight: 1 }}>
-                  {(sub as any).passes_remaining_this_month}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--bw-muted)' }}>passes left</div>
+                <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--bw-text)' }}>BAR COMMAND CENTER</div>
+                <div style={{ fontSize: 11, color: 'var(--bw-muted)' }}>Manage flares, bracelet drops, specials, and redemptions</div>
               </div>
             </div>
+            <ChevronRight size={20} style={{ color: 'var(--bw-muted)' }} />
           </div>
-        )}
+        </a>
 
         {/* Push notifications */}
         <PushNotificationPrompt />
@@ -72,6 +60,20 @@ export default async function AccountPage() {
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--bw-text)' }}>Verification & Anti-Fraud</div>
                 <div style={{ fontSize: 11, color: 'var(--bw-muted)' }}>Device, phone, and .edu verification</div>
+              </div>
+            </div>
+            <ChevronRight size={20} style={{ color: 'var(--bw-muted)' }} />
+          </div>
+        </a>
+
+        {/* Skin Armory */}
+        <a href="/skins" style={{ display: 'block', textDecoration: 'none' }}>
+          <div className="card" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderLeft: '3px solid var(--bw-violet)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Sparkles size={20} style={{ color: 'var(--bw-violet-soft)' }} />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--bw-text)' }}>Skin Armory</div>
+                <div style={{ fontSize: 11, color: 'var(--bw-muted)' }}>Status skins, squad identity, deception rentals</div>
               </div>
             </div>
             <ChevronRight size={20} style={{ color: 'var(--bw-muted)' }} />
@@ -109,6 +111,18 @@ export default async function AccountPage() {
             Sign out
           </button>
         </form>
+
+        {/* Delete account */}
+        <DeleteAccount />
+
+        {/* Blocked players */}
+        <BlockedPlayers userId={user.id} />
+
+        {/* Legal links */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 8, fontSize: 12 }}>
+          <a href="https://barwars.app/privacy" style={{ color: 'var(--bw-muted)', textDecoration: 'none' }}>Privacy Policy</a>
+          <a href="https://barwars.app/terms" style={{ color: 'var(--bw-muted)', textDecoration: 'none' }}>Terms of Service</a>
+        </div>
 
       </div>
       <BottomNav />
