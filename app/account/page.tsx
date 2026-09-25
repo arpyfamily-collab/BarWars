@@ -24,6 +24,14 @@ export default async function AccountPage() {
     .order('awarded_at', { ascending: false })
     .limit(10)
 
+  // Only bar admins see the Bar Command Center card (everyone else was bounced to /?err=not_bar_admin)
+  const { data: barAdminRows } = await supabase
+    .from('bar_admins')
+    .select('bar_id')
+    .eq('user_id', user.id)
+    .limit(1)
+  const isBarAdmin = (barAdminRows?.length ?? 0) > 0
+
   return (
     <div className="page">
       <div className="page-header">
@@ -35,19 +43,21 @@ export default async function AccountPage() {
 
       <div className="page-content">
 
-        {/* Bar Command Center */}
-        <a href="/bar-admin" style={{ display: 'block', textDecoration: 'none' }}>
-          <div className="card" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderLeft: '3px solid var(--bw-flare)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Zap size={20} style={{ color: 'var(--bw-flare)' }} />
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--bw-text)' }}>BAR COMMAND CENTER</div>
-                <div style={{ fontSize: 11, color: 'var(--bw-muted)' }}>Manage flares, bracelet drops, specials, and redemptions</div>
+        {/* Bar Command Center (bar admins only) */}
+        {isBarAdmin && (
+          <a href="/bar-admin" style={{ display: 'block', textDecoration: 'none' }}>
+            <div className="card" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderLeft: '3px solid var(--bw-flare)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Zap size={20} style={{ color: 'var(--bw-flare)' }} />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--bw-text)' }}>BAR COMMAND CENTER</div>
+                  <div style={{ fontSize: 11, color: 'var(--bw-muted)' }}>Manage flares, bracelet drops, specials, and redemptions</div>
+                </div>
               </div>
+              <ChevronRight size={20} style={{ color: 'var(--bw-muted)' }} />
             </div>
-            <ChevronRight size={20} style={{ color: 'var(--bw-muted)' }} />
-          </div>
-        </a>
+          </a>
+        )}
 
         {/* Push notifications */}
         <PushNotificationPrompt />
