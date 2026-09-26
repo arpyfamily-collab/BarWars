@@ -2,8 +2,10 @@
  * middleware.ts (root level)
  *
  * Guards:
- *   /operator/*   — only profiles.is_staff = true
- *   /bar-admin/*  — user must have at least one row in bar_admins
+ *   every app page — must be signed in; signed-out visitors go to /login first
+ *                    (public: /login, /privacy, /review)
+ *   /operator/*    — only profiles.is_staff = true
+ *   /bar-admin/*   — user must have at least one row in bar_admins
  *
  * Also handles the Supabase session refresh on every request.
  */
@@ -37,6 +39,15 @@ export async function middleware(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const path = req.nextUrl.pathname
+
+  // Everyone starts at the sign-in / sign-up screen until they have an account session
+  const PUBLIC_PATHS = ['/login', '/privacy', '/review']
+  const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + '/'))
+  if (!user && !isPublic) {
+    const url = new URL('/login', req.url)
+    url.searchParams.set('next', path + req.nextUrl.search)
+    return NextResponse.redirect(url)
+  }
 
   // Protect /operator routes
   if (path.startsWith('/operator')) {
@@ -76,5 +87,6 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/operator/:path*', '/bar-admin/:path*'],
+  // All pages except Next.js internals, API routes (they check auth themselves) and static files
+  matcher: ['/((?!_next/static|_next/image|api/|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|txt|xml|json|webmanifest|js|css|map|woff2?)$).*)'],
 }

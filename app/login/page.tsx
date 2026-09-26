@@ -17,7 +17,7 @@ function LoginForm() {
   const [ageConfirmed, setAgeConfirmed] = useState(false)
   const router = useRouter()
   const params = useSearchParams()
-  const next = params.get('next') ?? '/account'
+  const next = params.get('next') ?? '/'
 
   const supabase = createClient()
 
@@ -55,7 +55,14 @@ function LoginForm() {
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password })
       if (error) {
-        setError(error.message)
+        const msg = error.message.toLowerCase()
+        if (msg.includes('invalid login credentials')) {
+          setError("Wrong email or password. New here? Tap Sign Up above to create your account.")
+        } else if (msg.includes('email not confirmed')) {
+          setError('Confirm your email first: open the link we sent you, then come back here and sign in.')
+        } else {
+          setError(error.message)
+        }
         setLoading(false)
       } else {
         router.push(next)
