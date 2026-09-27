@@ -9,11 +9,9 @@ import { Capacitor } from '@capacitor/core'
 import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera'
 import jsQR from 'jsqr'
 
+// The Hunt list never includes the bar, bar ID or QR code: the bar is a surprise until scanned
 interface BraceletDrop {
   id: string
-  venue_id: string
-  qr_token: string
-  status: string
   offer_type: string
   offer_value: string | null
   clue_1: string | null
@@ -23,9 +21,6 @@ interface BraceletDrop {
   clue_2_released_at: string | null
   clue_3_released_at: string | null
   hidden_at: string
-  found_by: string | null
-  found_at: string | null
-  venues: { name: string } | null
 }
 
 interface FoundItem {
@@ -33,8 +28,6 @@ interface FoundItem {
   status: string
   offer_value: string | null
   found_at: string | null
-  found_by: string | null
-  venues: { name: string } | null
 }
 
 interface ScanResult {
@@ -93,51 +86,24 @@ export default function BraceletHuntPage() {
   const [, setTick] = useState(0)
 
   const loadData = useCallback(async () => {
-    const supabase = createClient()
-
-    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
-
-    const { data: active } = await supabase
-      .from('bracelet_drops')
-      .select(`
-        id, venue_id, qr_token, status, offer_type, offer_value,
-        clue_1, clue_2, clue_3,
-        clue_1_released_at, clue_2_released_at, clue_3_released_at,
-        hidden_at, found_by, found_at,
-        venues:venue_id(name)
-      `)
-      .eq('status', 'hidden')
-      .gte('hidden_at', fortyEightHoursAgo)
-      .order('hidden_at', { ascending: false })
-
-    setActiveHunts((active as unknown as BraceletDrop[]) ?? [])
-
-    const { data: found } = await supabase
-      .from('bracelet_drops')
-      .select(`
-        id, status, offer_value, found_at, found_by,
-        venues:venue_id(name)
-      `)
-      .in('status', ['kept', 'donated'])
-      .not('found_at', 'is', null)
-      .order('found_at', { ascending: false })
-      .limit(5)
-
-    setRecentlyFound((found as unknown as FoundItem[]) ?? [])
+    try {
+      const res = await fetch('/api/bracelet-hunt', { cache: 'no-store' })
+      const data = await res.json()
+      if (res.ok && data && !data.error) {
+        setActiveHunts((data.active as BraceletDrop[]) ?? [])
+        setRecentlyFound((data.found as FoundItem[]) ?? [])
+      }
+    } catch {
+      // keep what's on screen; the next refresh will retry
+    }
     setLoading(false)
   }, [])
 
   useEffect(() => {
     loadData()
-
-    const supabase = createClient()
-    const channel = supabase.channel('bracelet-hunt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bracelet_drops' }, () => {
-        loadData()
-      })
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
+    // Refresh every 30 seconds so new drops and newly released clues appear
+    const refresh = setInterval(loadData, 30000)
+    return () => clearInterval(refresh)
   }, [loadData])
 
   // Re-render every second for countdown timers
@@ -367,7 +333,7 @@ export default function BraceletHuntPage() {
 
         {activeHunts.map((hunt) => (
           <div key={hunt.id} className="card" style={{ borderLeft: '3px solid var(--bw-yellow)' }}>
-            {/* Bar name badge */}
+            {/* Mystery badge: the bar stays hidden until the bracelet is scanned */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <div
                 style={{
@@ -381,7 +347,7 @@ export default function BraceletHuntPage() {
                   letterSpacing: '0.06em',
                 }}
               >
-                {hunt.venues?.name ?? 'Unknown bar'}
+                Mystery bar
               </div>
               <div style={{ fontSize: 10, color: 'var(--bw-muted)' }}>
                 {timeAgo(hunt.hidden_at)}
@@ -529,7 +495,7 @@ export default function BraceletHuntPage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--bw-text)' }}>
-                      {item.venues?.name ?? 'Unknown bar'}
+                      {item.offer_value ?? 'A bracelet'}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--bw-muted)' }}>
                       A soldier found this &middot; {item.found_at ? timeAgo(item.found_at) : 'recently'}

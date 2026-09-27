@@ -484,6 +484,7 @@ function BraceletsTab({ venueId, userId }: { venueId: string; userId: string }) 
         clue_1: clue1.trim(),
         clue_2: clue2.trim() || null,
         clue_3: clue3.trim() || null,
+        clue_1_released_at: new Date().toISOString(),
         clue_2_released_at: release2 ? new Date(release2).toISOString() : null,
         clue_3_released_at: release3 ? new Date(release3).toISOString() : null,
         offer_type: offerType,
@@ -498,7 +499,12 @@ function BraceletsTab({ venueId, userId }: { venueId: string; userId: string }) 
       setOfferValue(''); setRelease2(''); setRelease3('')
       await reload()
     } catch (e: any) {
-      setError(e.message)
+      const msg = String(e?.message ?? '')
+      setError(
+        msg.includes('BAR_NAME_IN_CLUE')
+          ? "Clues and the offer can't name your bar. Players see only the clues, and the bar is revealed when they scan the bracelet."
+          : msg
+      )
     } finally {
       setSaving(false)
     }
@@ -518,6 +524,9 @@ function BraceletsTab({ venueId, userId }: { venueId: string; userId: string }) 
 
       <Panel>
         <SectionTitle icon="🎁" title="Hide a Bracelet" />
+        <div style={{ fontSize: 12, color: C.textDim, marginBottom: 12 }}>
+          Players see only your clues and the offer, never your bar&apos;s name. Keep it a mystery: don&apos;t name the bar in any clue or the offer.
+        </div>
         <Field label="Clue 1 (visible immediately)">
           <input value={clue1} onChange={(e) => setClue1(e.target.value)} placeholder="It's near the front door..." style={inputStyle} />
         </Field>
