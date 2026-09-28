@@ -27,7 +27,12 @@ export async function GET() {
     .order('created_at', { ascending: false })
     .limit(25)
 
-  if (error || !data) return ok([])
+  if (error || !data) {
+    console.error('[feed] query failed:', error?.message)
+    const res = ok([])
+    res.headers.set('x-feed-error', (error?.message ?? 'no data').slice(0, 200))
+    return res
+  }
 
   const mapped = (data as any[]).map(e => ({
     id: e.id,
