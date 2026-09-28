@@ -18,6 +18,8 @@ function LoginForm() {
   const router = useRouter()
   const params = useSearchParams()
   const next = params.get('next') ?? '/'
+  const justDeleted = params.get('deleted') === '1'
+  const fromInvite = next.startsWith('/join/')
 
   const supabase = createClient()
 
@@ -43,7 +45,11 @@ function LoginForm() {
       const { error } = await supabase.auth.signUp({
         email: normalizedEmail,
         password,
-        options: { data: { age_confirmed_18: true } },
+        options: {
+          data: { age_confirmed_18: true },
+          // The confirmation email brings them back to where they were headed (e.g. an invite link)
+          emailRedirectTo: `${window.location.origin}/login?next=${encodeURIComponent(next)}`,
+        },
       })
       if (error) {
         setError(error.message)
@@ -138,6 +144,24 @@ function LoginForm() {
               minLength={6}
             />
           </div>
+
+          {fromInvite && !error && (
+            <div style={{
+              fontSize: 12, color: 'var(--bw-gold)', background: 'rgba(245,184,0,0.08)',
+              border: '1px solid rgba(245,184,0,0.3)', borderRadius: 8, padding: '10px 12px', lineHeight: 1.5,
+            }}>
+              You&apos;ve been invited to a Hessian company. Sign up (or sign in) and you&apos;ll go straight to your invite.
+            </div>
+          )}
+
+          {justDeleted && !error && (
+            <div style={{
+              fontSize: 12, color: 'var(--bw-green)', background: 'rgba(46,204,113,0.1)',
+              border: '1px solid rgba(46,204,113,0.3)', borderRadius: 8, padding: '10px 12px',
+            }}>
+              Your account has been deleted.
+            </div>
+          )}
 
           {error && (
             <div style={{

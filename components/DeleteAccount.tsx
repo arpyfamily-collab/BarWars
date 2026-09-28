@@ -3,13 +3,14 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-client'
-import { Trash2, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
 export default function DeleteAccount() {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [typed, setTyped] = useState('')
   const router = useRouter()
 
   async function handleConfirm() {
@@ -37,7 +38,7 @@ export default function DeleteAccount() {
     await supabase.auth.signOut()
     setSuccess(true)
     setOpen(false)
-    router.push('/login')
+    router.push('/login?deleted=1')
   }
 
   if (success) {
@@ -55,12 +56,10 @@ export default function DeleteAccount() {
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
-        className="btn btn-danger"
-        style={{ fontSize: 14, background: 'transparent', border: '1px solid rgba(224,49,49,0.4)', color: 'var(--bw-red)' }}
+        onClick={() => { setTyped(''); setOpen(true) }}
+        style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'var(--bw-muted)', textDecoration: 'underline', cursor: 'pointer' }}
       >
-        <Trash2 size={16} />
-        Delete Account
+        Delete my account
       </button>
 
       {error && (
@@ -89,7 +88,19 @@ export default function DeleteAccount() {
               Delete Account
             </div>
             <div style={{ fontSize: 13, color: 'var(--bw-text)', lineHeight: 1.6 }}>
-              Delete your account? This permanently deletes your profile and predictions. Your messages and battle records stay visible to other players but are no longer linked to you. This can&apos;t be undone.
+              This permanently deletes your profile and predictions. Your messages and battle records stay visible to other players but are no longer linked to you. If you captain a Hessian company or Regiment, its longest-serving member takes over. This can&apos;t be undone.
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: 'var(--bw-muted)', marginBottom: 6 }}>Type DELETE to confirm</div>
+              <input
+                value={typed}
+                onChange={e => setTyped(e.target.value)}
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="DELETE"
+                style={{ width: '100%', background: '#0D1117', border: '1px solid var(--bw-border)', borderRadius: 8, padding: '10px 12px', color: 'var(--bw-text)', fontSize: 14, letterSpacing: '0.08em' }}
+              />
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <button
@@ -102,7 +113,7 @@ export default function DeleteAccount() {
               </button>
               <button
                 onClick={handleConfirm}
-                disabled={loading}
+                disabled={loading || typed.trim().toUpperCase() !== 'DELETE'}
                 className="btn btn-danger"
                 style={{ fontSize: 14 }}
               >

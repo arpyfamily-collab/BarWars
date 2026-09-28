@@ -75,7 +75,14 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => b.compatibility_score - a.compatibility_score)
     .slice(0, 5)
 
-  return ok(filtered)
+  // Show who each match is (first name + last initial, same as War Comms)
+  const ids = filtered.map(m => m.user_id)
+  const { data: names } = ids.length
+    ? await service.from('public_profiles').select('id, display_name').in('id', ids)
+    : { data: [] as any[] }
+  const nameById = new Map(((names as any[]) ?? []).map(n => [n.id, n.display_name]))
+
+  return ok(filtered.map(m => ({ ...m, display_name: nameById.get(m.user_id) ?? 'Player' })))
 }
 
 export async function POST(req: NextRequest) {

@@ -124,9 +124,6 @@ export default async function AccountPage() {
           </button>
         </form>
 
-        {/* Delete account */}
-        <DeleteAccount />
-
         {/* Blocked players */}
         <BlockedPlayers userId={user.id} />
 
@@ -134,6 +131,11 @@ export default async function AccountPage() {
         <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 8, fontSize: 12 }}>
           <a href="https://barwars.app/privacy" style={{ color: 'var(--bw-muted)', textDecoration: 'none' }}>Privacy Policy</a>
           <a href="https://barwars.app/terms" style={{ color: 'var(--bw-muted)', textDecoration: 'none' }}>Terms of Service</a>
+        </div>
+
+        {/* Delete account: deliberately far from Sign Out (To-Do item 7), still easy to find (Apple requires it) */}
+        <div style={{ marginTop: 48, paddingBottom: 8, textAlign: 'center' }}>
+          <DeleteAccount />
         </div>
 
       </div>

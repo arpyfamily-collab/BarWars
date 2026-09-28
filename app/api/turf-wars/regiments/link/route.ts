@@ -133,7 +133,35 @@ export async function GET(req: NextRequest) {
 
   if (error) return err(error.message, 500)
 
-  const links = (data as any[]) ?? []
+  const raw = (data as any[]) ?? []
+
+  // Who is on the other end of each link: display name (first name + last initial,
+  // same as War Comms) and their Finder answers (To-Do item 1)
+  const otherIds = Array.from(new Set(raw.map(l => (l.user_a === userId ? l.user_b : l.user_a))))
+  const [names, finders] = otherIds.length
+    ? await Promise.all([
+        service.from('public_profiles').select('id, display_name').in('id', otherIds),
+        service.from('regiment_finder_profiles').select('user_id, nights_out, vibe, situation, pitch').in('user_id', otherIds),
+      ])
+    : [{ data: [] as any[] }, { data: [] as any[] }]
+  const nameById = new Map(((names.data as any[]) ?? []).map(n => [n.id, n.display_name]))
+  const finderById = new Map(((finders.data as any[]) ?? []).map(f => [f.user_id, f]))
+
+  const links = raw.map(l => {
+    const otherId = l.user_a === userId ? l.user_b : l.user_a
+    const f: any = finderById.get(otherId) ?? {}
+    return {
+      ...l,
+      other: {
+        user_id: otherId,
+        display_name: nameById.get(otherId) ?? 'Player',
+        nights_out: f.nights_out ?? null,
+        vibe: f.vibe ?? null,
+        situation: f.situation ?? null,
+        pitch: f.pitch ?? null,
+      },
+    }
+  })
   const incoming = links.filter(l => l.initiator !== userId && l.status === 'pending')
   const outgoing = links.filter(l => l.initiator === userId && l.status === 'pending')
   const linked = links.filter(l => l.status === 'linked')

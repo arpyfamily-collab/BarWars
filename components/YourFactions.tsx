@@ -7,7 +7,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { Info, X, Crown, LogOut, AlertTriangle, Clock } from 'lucide-react'
+import { Info, X, Crown, LogOut, AlertTriangle, Clock, UserPlus, Check } from 'lucide-react'
 
 type FactionType = 'greek' | 'company' | 'regiment' | 'mercenary' | 'spy'
 
@@ -20,6 +20,7 @@ interface Faction {
   leave: { grace: boolean; live_war: boolean; cooldown_days: number; grace_ends_at?: string }
   stepdown?: { ends_at: string; captain_name: string | null; nominee_id: string | null; nominee_name: string | null; i_am_nominee: boolean }
   members?: { id: string; name: string }[]
+  requests?: { member_id: string; name: string }[]
 }
 
 const SUPPORT = "Signed up for the wrong group? Contact support@barwars.app and we'll move you."
@@ -129,6 +130,36 @@ export default function YourFactions({ types, title = 'Your factions' }: { types
     finally { setBusy(false); setLeaving(null); setSteppingDown(null) }
   }
 
+  // Hessian invites (To-Do item 2): the phone's share sheet sends the link by text, email, WhatsApp...
+  async function invite(f: Faction) {
+    setBusy(true); setMessage(null)
+    try {
+      const res = await fetch('/api/turf-wars/hessians/invite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ company_id: f.id }) })
+      const d = await res.json()
+      if (!res.ok) { setMessage({ kind: 'error', text: d.error || 'Could not make an invite' }); return }
+      const text = `Join my Hessian company ${d.company_name} on BarWars. Tap to join:`
+      if (typeof navigator !== 'undefined' && (navigator as any).share) {
+        try { await (navigator as any).share({ title: `Join ${d.company_name}`, text, url: d.url }) }
+        catch (e: any) { if (e?.name !== 'AbortError') throw e }
+      } else {
+        await navigator.clipboard.writeText(`${text} ${d.url}`)
+        setMessage({ kind: 'ok', text: 'Invite link copied. Paste it into a text or email.' })
+      }
+    } catch { setMessage({ kind: 'error', text: 'Could not share the invite. Try again.' }) }
+    finally { setBusy(false) }
+  }
+
+  async function decide(memberId: string, name: string, action: 'approve' | 'reject') {
+    setBusy(true); setMessage(null)
+    try {
+      const res = await fetch('/api/turf-wars/hessians/join', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ member_id: memberId, action }) })
+      const d = await res.json()
+      if (!res.ok) setMessage({ kind: 'error', text: d.error || 'Something went wrong' })
+      else { setMessage({ kind: 'ok', text: action === 'approve' ? `${name} is in.` : `Declined ${name}.` }); await load() }
+    } catch { setMessage({ kind: 'error', text: 'Network error. Try again.' }) }
+    finally { setBusy(false) }
+  }
+
   const shown = factions.filter(f => !types || types.includes(f.type))
   const shownCooldowns = cooldowns.filter(c => !types || types.includes(c.type as FactionType) || c.type === 'ex_captain')
   if (!loaded || (shown.length === 0 && shownCooldowns.length === 0 && !message)) return null
@@ -205,6 +236,32 @@ export default function YourFactions({ types, title = 'Your factions' }: { types
                         onClick={() => call('/api/factions/captain', { type: f.type, id: f.id, action: 'cancel' }, () => 'Step-down cancelled. You’re staying on as captain.')}>Cancel step-down</button>
                     </div>
                   )}
+                </div>
+              )}
+
+              {isCaptain && f.type === 'company' && (
+                <button className="btn" disabled={busy} onClick={() => invite(f)}
+                  style={{ marginTop: 10, width: '100%', fontSize: 13, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, borderColor: 'rgba(245,184,0,0.35)', color: 'var(--bw-gold)' }}>
+                  <UserPlus size={15} /> Invite friends by text or email
+                </button>
+              )}
+
+              {isCaptain && (f.requests ?? []).length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--bw-gold)', marginBottom: 6 }}>Join requests ({f.requests!.length})</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {f.requests!.map(r => (
+                      <div key={r.member_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                        <span style={{ fontWeight: 600 }}>{r.name}</span>
+                        <span style={{ display: 'flex', gap: 6 }}>
+                          <button className="btn" disabled={busy} style={{ fontSize: 11, padding: '4px 9px', color: 'var(--bw-green)', borderColor: 'rgba(46,204,113,0.35)', display: 'flex', alignItems: 'center', gap: 3 }}
+                            onClick={() => decide(r.member_id, r.name, 'approve')}><Check size={12} /> Approve</button>
+                          <button className="btn" disabled={busy} style={{ fontSize: 11, padding: '4px 9px' }}
+                            onClick={() => decide(r.member_id, r.name, 'reject')}>Decline</button>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 

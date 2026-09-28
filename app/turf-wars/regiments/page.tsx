@@ -22,6 +22,16 @@ interface Match {
   situation: string
   pitch: string
   compatibility_score: number
+  display_name?: string
+}
+
+interface LinkOther {
+  user_id: string
+  display_name: string
+  nights_out: string | null
+  vibe: string | null
+  situation: string | null
+  pitch: string | null
 }
 
 interface LinksData {
@@ -74,6 +84,7 @@ const NIGHTS_LABELS: Record<string, string> = {
 export default function RegimentsPage() {
   const [profile, setProfile] = useState<FinderProfile | null>(null)
   const [matches, setMatches] = useState<Match[]>([])
+  const [picked, setPicked] = useState<string[]>([])
   const [links, setLinks] = useState<LinksData>({ incoming: [], outgoing: [], linked: [] })
   const [raids, setRaids] = useState<Raid[]>([])
   const [myRegiment, setMyRegiment] = useState<any>(null)
@@ -211,9 +222,13 @@ export default function RegimentsPage() {
       setFormationResult('Name must be at least 3 characters')
       return
     }
-    const linkedIds = links.linked.map((l: any) => l.user_a === getUserId() ? l.user_b : l.user_a)
+    const linkedIds = picked
     if (linkedIds.length < 4) {
-      setFormationResult('You need at least 4 linked companions to form a Regiment')
+      setFormationResult('Pick at least 4 companions to form a Regiment')
+      return
+    }
+    if (linkedIds.length > 9) {
+      setFormationResult('A Regiment has at most 10 members: you plus 9 companions')
       return
     }
     setSubmitting(true)
@@ -222,7 +237,7 @@ export default function RegimentsPage() {
       const res = await fetch('/api/turf-wars/regiments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: regimentName, member_user_ids: linkedIds.slice(0, 9) }),
+        body: JSON.stringify({ name: regimentName, member_user_ids: linkedIds }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -412,7 +427,10 @@ export default function RegimentsPage() {
                     <div style={{ fontSize: 12, color: 'var(--bw-muted)', marginBottom: 12 }}>
                       That&apos;s enough to form a Regiment. Pick a name and make it official.
                     </div>
-                    <button className="btn btn-primary" onClick={() => setShowFormation(true)}>
+                    <button className="btn btn-primary" onClick={() => {
+                      setPicked(links.linked.map((l: any) => l.other?.user_id).filter(Boolean).slice(0, 9))
+                      setShowFormation(true)
+                    }}>
                       <Skull size={16} /> Form Your Regiment
                     </button>
                   </div>
@@ -431,8 +449,29 @@ export default function RegimentsPage() {
                       maxLength={40}
                       style={{ marginBottom: 12 }}
                     />
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--bw-muted)', marginBottom: 8 }}>
+                      Who&apos;s in ({picked.length} of up to 9)
+                    </div>
+                    <div className="stack stack-sm" style={{ marginBottom: 12 }}>
+                      {links.linked.map((l: any) => {
+                        const o: LinkOther | undefined = l.other
+                        if (!o) return null
+                        const on = picked.includes(o.user_id)
+                        return (
+                          <label key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={on}
+                              onChange={() => setPicked(p => on ? p.filter(x => x !== o.user_id) : (p.length >= 9 ? p : [...p, o.user_id]))}
+                            />
+                            <span style={{ fontWeight: 600 }}>{o.display_name}</span>
+                            {o.vibe && <span style={{ fontSize: 11, color: 'var(--bw-muted)' }}>{VIBE_LABELS[o.vibe]}</span>}
+                          </label>
+                        )
+                      })}
+                    </div>
                     <div style={{ fontSize: 11, color: 'var(--bw-muted)', marginBottom: 12 }}>
-                      {linkedCount} members will be included. You will be the Captain.
+                      You will be the Captain. Everyone you pick must still be linked with you.
                     </div>
                     {formationResult && (
                       <div style={{ fontSize: 12, color: formationResult.includes('formed') ? 'var(--bw-green)' : 'var(--bw-red)', marginBottom: 10 }}>
@@ -469,7 +508,8 @@ export default function RegimentsPage() {
                             }}>
                               {m.compatibility_score}
                             </div>
-                            <span style={{ fontSize: 12, color: 'var(--bw-muted)' }}>compatibility</span>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--bw-text)' }}>{m.display_name ?? 'Player'}</span>
+                            <span style={{ fontSize: 11, color: 'var(--bw-muted)' }}>· {m.compatibility_score} match</span>
                           </div>
                         </div>
                         <div style={{ fontSize: 13, color: 'var(--bw-text)', marginBottom: 6 }}>
@@ -521,10 +561,10 @@ export default function RegimentsPage() {
                 </div>
                 <div className="stack stack-sm">
                   {links.incoming.map((l: any) => {
-                    const otherId = l.user_a === getUserId() ? l.user_b : l.user_a
                     return (
                       <div key={l.id} className="card">
-                        <div style={{ fontSize: 13, marginBottom: 10 }}>Someone wants to Link Up with you!</div>
+                        <div style={{ fontSize: 13, marginBottom: 6 }}><b>{l.other?.display_name ?? 'A player'}</b> wants to Link Up with you</div>
+                        <PersonDetails o={l.other} />
                         <div style={{ display: 'flex', gap: 6 }}>
                           <button className="btn btn-ghost" style={{ flex: 1, borderColor: 'rgba(46,204,113,0.3)', color: 'var(--bw-green)' }}
                             onClick={() => respondLink(l.id, 'accept')} disabled={linkLoading === l.id}>
@@ -557,7 +597,10 @@ export default function RegimentsPage() {
                     <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(46,204,113,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <Check size={16} style={{ color: 'var(--bw-green)' }} />
                     </div>
-                    <span style={{ fontSize: 13 }}>Linked</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{l.other?.display_name ?? 'Player'}</div>
+                      <PersonDetails o={l.other} />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -571,8 +614,9 @@ export default function RegimentsPage() {
                 </div>
                 <div className="stack stack-sm">
                   {links.outgoing.map((l: any) => (
-                    <div key={l.id} className="card" style={{ fontSize: 13, color: 'var(--bw-muted)' }}>
-                      Pending — waiting for response
+                    <div key={l.id} className="card" style={{ fontSize: 13 }}>
+                      <div><b>{l.other?.display_name ?? 'Player'}</b> <span style={{ color: 'var(--bw-muted)' }}>· waiting for them to accept</span></div>
+                      <PersonDetails o={l.other} />
                     </div>
                   ))}
                 </div>
@@ -645,5 +689,24 @@ function TabBtn({ active, onClick, icon, label }: { active: boolean; onClick: ()
       {icon}
       {label}
     </button>
+  )
+}
+
+function PersonDetails({ o }: { o?: LinkOther }) {
+  if (!o) return null
+  const bits = [o.nights_out && NIGHTS_LABELS[o.nights_out], o.vibe && VIBE_LABELS[o.vibe]].filter(Boolean)
+  return (
+    <div style={{ marginBottom: 8 }}>
+      {bits.length > 0 && (
+        <div style={{ fontSize: 12, color: 'var(--bw-muted)' }}>
+          {o.nights_out ? 'Goes out ' : ''}{bits.join(' · ')}
+        </div>
+      )}
+      {o.pitch && (
+        <div style={{ fontSize: 12, fontStyle: 'italic', color: 'var(--bw-text)', marginTop: 4, lineHeight: 1.4 }}>
+          &ldquo;{o.pitch}&rdquo;
+        </div>
+      )}
+    </div>
   )
 }

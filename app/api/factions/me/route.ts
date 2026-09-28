@@ -89,6 +89,14 @@ export async function GET() {
       const ids = ((mem as any[]) ?? []).map(m => m.user_id)
       const { data: names } = ids.length ? await s.from('public_profiles').select('id, display_name').in('id', ids) : { data: [] }
       f.members = ids.map(id => ({ id, name: ((names as any[]) ?? []).find(n => n.id === id)?.display_name ?? 'Member' }))
+
+      // Hessian join requests waiting on the captain (To-Do item 2)
+      if (f.type === 'company') {
+        const { data: reqs } = await s.from('hessian_members').select('id, user_id, joined_at').eq('company_id', f.id).eq('verified', false).order('joined_at')
+        const rids = ((reqs as any[]) ?? []).map(r => r.user_id)
+        const { data: rnames } = rids.length ? await s.from('public_profiles').select('id, display_name').in('id', rids) : { data: [] }
+        f.requests = ((reqs as any[]) ?? []).map(r => ({ member_id: r.id, name: ((rnames as any[]) ?? []).find(n => n.id === r.user_id)?.display_name ?? 'Player' }))
+      }
     }
   }
 

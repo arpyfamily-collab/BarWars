@@ -27,6 +27,11 @@ export function factionError(raw: string | null | undefined): { message: string;
     NOT_STAFF: ['Staff only.', 403],
     NOTE_REQUIRED: ['Add a note saying why.', 400],
     INVALID_FACTION: ['Unknown faction.', 400],
+    INVITE_INVALID: ["This invite link isn't valid anymore. Ask the captain for a new one.", 410],
+    INVITE_EXPIRED: ['This invite link has expired. Ask the captain for a new one.', 410],
+    INVITE_FULL: ['This invite link has been used up. Ask the captain for a new one.', 410],
+    INVITE_OWN: ["That's your own invite link. Share it with friends.", 409],
+    ALREADY_IN_COMPANY: ["You're already in a Hessian company. Leave it first to join this one.", 409],
   }
   for (const [code, [message, status]] of Object.entries(codes)) if (m.includes(code)) return { message, status }
   // Plain rule messages from the database (e.g. "Greek members can't be Hessians...") pass through

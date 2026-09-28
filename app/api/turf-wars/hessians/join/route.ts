@@ -104,26 +104,20 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (body.action === 'approve') {
-    await service
+    if ((member as any).verified) return err('Already a member', 409)
+    const { error: upErr } = await service
       .from('hessian_members')
       .update({ verified: true })
       .eq('id', body.member_id)
+    if (upErr) { const e = factionError(upErr.message); return err(e.message, e.status) }
 
-    // Increment company member count
-    const { data: comp } = await service
-      .from('hessian_companies')
-      .select('member_count')
-      .eq('id', (member as any).company_id)
-      .single()
-
-    await service
-      .from('hessian_companies')
-      .update({ member_count: (comp as any).member_count + 1 })
-      .eq('id', (member as any).company_id)
+    // Keep the member count exact (the old +1 could drift)
+    await service.rpc('recount_unit', { p_type: 'company', p_id: (member as any).company_id })
 
     return ok({ id: body.member_id, verified: true })
   } else {
-    // Reject = delete the pending membership
+    // Reject = delete the pending membership (verified members are removed from Your Factions instead)
+    if ((member as any).verified) return err('Use Remove to take a member out of the company', 409)
     await service
       .from('hessian_members')
       .delete()

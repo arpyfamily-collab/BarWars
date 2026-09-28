@@ -25,6 +25,9 @@ export async function POST(req: NextRequest) {
   if (!body.member_user_ids || body.member_user_ids.length < 4) {
     return err('A Regiment needs at least 5 total members (you + 4 others)')
   }
+  body.member_user_ids = Array.from(new Set(body.member_user_ids.filter(id => id && id !== userId)))
+  if (body.member_user_ids.length < 4) return err('A Regiment needs at least 5 total members (you + 4 others)')
+  if (body.member_user_ids.length > 9) return err('A Regiment has at most 10 members: you plus 9 companions', 422)
 
   const service = createServiceClient()
 

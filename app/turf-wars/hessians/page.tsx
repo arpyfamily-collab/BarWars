@@ -24,6 +24,8 @@ export default function HessiansPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [refresh, setRefresh] = useState(0)
+  const [requesting, setRequesting] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/turf-wars/hessians')
@@ -44,7 +46,8 @@ export default function HessiansPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      setSuccess(`Company "${companyName}" created! You are the Captain.`)
+      setSuccess(`Company "${companyName}" created! You are the Captain. Tap "Invite friends" above to fill your ranks.`)
+      setRefresh(r => r + 1)
       setShowCreate(false)
       setCompanyName('')
       // Refresh list
@@ -56,6 +59,20 @@ export default function HessiansPage() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  async function requestJoin(comp: Company) {
+    setRequesting(comp.id); setError(null); setSuccess(null)
+    try {
+      const res = await fetch('/api/turf-wars/hessians/join', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ company_id: comp.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setSuccess(`Request sent to ${comp.name}. Their captain will approve you.`)
+      setRefresh(r => r + 1)
+    } catch (e: any) { setError(e.message) } finally { setRequesting(null) }
   }
 
   if (loading) return <div className="page"><div className="page-content" style={{ paddingTop: 60 }}><div style={{ fontSize: 13, color: 'var(--bw-muted)' }}>Loading…</div></div><BottomNav /></div>
@@ -71,7 +88,7 @@ export default function HessiansPage() {
       </div>
 
       <div className="page-content">
-        <YourFactions types={['company', 'mercenary']} />
+        <YourFactions key={refresh} types={['company', 'mercenary']} />
         {error && (
           <div className="card" style={{ borderColor: 'rgba(224,49,49,0.3)', background: 'rgba(224,49,49,0.08)' }}>
             <div style={{ fontSize: 13, color: 'var(--bw-red)', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -183,6 +200,10 @@ export default function HessiansPage() {
                       <span style={{ color: '#E03131' }}>{comp.ambushes_won} ambushes</span>
                     )}
                   </div>
+                  <button className="btn btn-ghost" disabled={requesting === comp.id} onClick={() => requestJoin(comp)}
+                    style={{ marginTop: 10, width: '100%', fontSize: 12, padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                    <UserPlus size={13} /> {requesting === comp.id ? 'Sending…' : 'Request to Join'}
+                  </button>
                 </div>
               )
             })}
