@@ -90,6 +90,11 @@ export default function SpyNetworkPage() {
   const [intelType, setIntelType] = useState('')
   const [intelContent, setIntelContent] = useState('')
   const [intelAsset, setIntelAsset] = useState('')
+  // Item 12: wars this spy can report on, and intel cells for sides this player leads
+  const [warOptions, setWarOptions] = useState<any[]>([])
+  const [intelWar, setIntelWar] = useState('')
+  const [cells, setCells] = useState<any[]>([])
+  const [cellPick, setCellPick] = useState<Record<string, string[]>>({})
   const [alerts, setAlerts] = useState<{ id: string; kind: string; headline: string; body: string | null; created_at: string }[]>([])
 
   // Ghost report form
@@ -131,6 +136,12 @@ export default function SpyNetworkPage() {
         }
       }
       if (Array.isArray(intelData)) setIntel(intelData)
+      fetch('/api/turf-wars/spies/intel?options=1').then(r => r.json()).then(d => { if (Array.isArray(d)) setWarOptions(d) }).catch(() => {})
+      fetch('/api/turf-wars/spies/cells').then(r => r.json()).then(d => {
+        if (!Array.isArray(d)) return
+        setCells(d)
+        setCellPick(Object.fromEntries(d.map((c: any) => [`${c.claim_id}:${c.side_id}`, c.cell.map((m: any) => m.user_id)])))
+      }).catch(() => {})
     } catch {
       // ignore
     } finally {
@@ -181,6 +192,7 @@ export default function SpyNetworkPage() {
   }
 
   async function submitIntel() {
+    if (!intelWar) { setActionResult('Pick the war this report is about'); return }
     if (!intelType || !intelContent) { setActionResult('Select intel type and write your report'); return }
     setActionLoading('intel')
     setActionResult(null)
@@ -188,11 +200,11 @@ export default function SpyNetworkPage() {
       const res = await fetch('/api/turf-wars/spies/intel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ intel_type: intelType, content: intelContent, asset_id: intelAsset || undefined }),
+        body: JSON.stringify({ intel_type: intelType, content: intelContent, asset_id: intelWar.split(':')[0], claim_id: intelWar.split(':')[1] }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      setActionResult('Intel delivered. This report expires in 24 hours.')
+      setActionResult(data.message ?? 'Intel delivered.')
       setIntelType('')
       setIntelContent('')
       loadAll()
@@ -493,20 +505,23 @@ export default function SpyNetworkPage() {
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--bw-muted)', marginBottom: 12 }}>
                   Submit Intel Report
                 </div>
-                {assets.myAssets.filter(a => a.is_active && !a.burned).length > 1 && (
-                  <div style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 12, fontWeight: 600 }}>Send to</label>
-                    <select className="input" value={intelAsset} onChange={e => setIntelAsset(e.target.value)} style={{ marginTop: 6 }}>
-                      <option value="">Pick a handler…</option>
-                      {assets.myAssets.filter(a => a.is_active && !a.burned).map(a => (
-                        <option key={a.id} value={a.id}>
-                          {a.handler_type === 'hessian_company' ? 'Hessian company' : 'Greek org'} handler, recruited {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600 }}>Report on</label>
+                  {warOptions.length === 0 ? (
+                    <div style={{ fontSize: 12, color: 'var(--bw-muted)', marginTop: 6 }}>
+                      No war to report on yet. You can file once your handler is in a declared war.
+                    </div>
+                  ) : (
+                    <select className="input" value={intelWar} onChange={e => setIntelWar(e.target.value)} style={{ marginTop: 6 }}>
+                      <option value="">Pick a war…</option>
+                      {warOptions.map(o => (
+                        <option key={`${o.asset_id}:${o.claim_id}`} value={`${o.asset_id}:${o.claim_id}`} disabled={o.reports_left === 0}>
+                          War at {o.bar}{new Set(warOptions.map(w => w.asset_id)).size > 1 ? ` · ${o.handler} handler` : ''} · {o.reports_left} of 3 left
                         </option>
                       ))}
                     </select>
-                    <div style={{ fontSize: 11, color: 'var(--bw-muted)', marginTop: 4 }}>You&apos;re a double agent. Each report goes to one handler.</div>
-                  </div>
-                )}
+                  )}
+                </div>
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ fontSize: 12, fontWeight: 600 }}>Intel Type</label>
                   <select className="input" value={intelType} onChange={e => setIntelType(e.target.value)} style={{ marginTop: 6 }}>
@@ -523,13 +538,13 @@ export default function SpyNetworkPage() {
                     className="input"
                     value={intelContent}
                     onChange={e => setIntelContent(e.target.value)}
-                    placeholder="What did you see or hear? This expires in 24 hours."
+                    placeholder="What did you see or hear?"
                     style={{ marginTop: 6, minHeight: 80 }}
                     maxLength={500}
                   />
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--bw-muted)', marginBottom: 12 }}>
-                  Intel messages are non-selectable. No screenshots. Reports auto-delete after 24 hours.
+                  Goes to your handler&apos;s leader and intel cell, never with your name. Readable until the war ends. 3 reports per war.
                 </div>
                 <button className="btn btn-primary" onClick={submitIntel} disabled={actionLoading === 'intel'}>
                   <Send size={16} /> {actionLoading === 'intel' ? 'Sending…' : 'Deliver Intel'}
@@ -541,21 +556,73 @@ export default function SpyNetworkPage() {
               </div>
             )}
 
-            {/* Intel feed (as handler) */}
-            {isHandler && intel.length > 0 && (
+            {/* Intel cells (item 12): the leader picks up to 2 members per war */}
+            {cells.length > 0 && (
+              <div className="card" style={{ marginTop: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--bw-muted)', marginBottom: 6 }}>
+                  Intel cells
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--bw-muted)', lineHeight: 1.5, marginBottom: 10 }}>
+                  You plus up to 2 members read mole intel for each war. A new member sees only reports filed after they join. Any of them could be a rival&apos;s mole.
+                </div>
+                <div className="stack stack-sm">
+                  {cells.map(c => {
+                    const key = `${c.claim_id}:${c.side_id}`
+                    const picked = cellPick[key] ?? []
+                    const toggle = (uid: string) => setCellPick(p => {
+                      const cur = p[key] ?? []
+                      return { ...p, [key]: cur.includes(uid) ? cur.filter(x => x !== uid) : cur.length >= 2 ? cur : [...cur, uid] }
+                    })
+                    return (
+                      <div key={key} style={{ border: '1px solid var(--bw-border)', borderRadius: 10, padding: 10 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700 }}>War at {c.bar}</div>
+                        <div style={{ fontSize: 11, color: 'var(--bw-muted)', marginBottom: 8 }}>
+                          {c.side_name} · cell: you{c.cell.length ? `, ${c.cell.map((m: any) => m.name).join(', ')}` : ' only'}
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 140, overflowY: 'auto', marginBottom: 8 }}>
+                          {c.candidates.map((m: any) => (
+                            <button key={m.user_id} onClick={() => toggle(m.user_id)} className="btn"
+                              style={{ fontSize: 11, padding: '4px 8px', ...(picked.includes(m.user_id) ? { color: 'var(--bw-gold)', borderColor: 'rgba(245,184,0,0.5)' } : {}) }}>
+                              {m.name}
+                            </button>
+                          ))}
+                        </div>
+                        <button className="btn btn-primary" style={{ fontSize: 12, padding: '6px 12px' }} disabled={actionLoading === key}
+                          onClick={async () => {
+                            setActionLoading(key); setActionResult(null)
+                            try {
+                              const res = await fetch('/api/turf-wars/spies/cells', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ claim_id: c.claim_id, [c.side_type === 'org' ? 'org_id' : 'company_id']: c.side_id, member_ids: picked }) })
+                              const d = await res.json()
+                              if (!res.ok) throw new Error(d.error)
+                              setActionResult('Intel cell saved. Its private chat is in Comms.')
+                              loadAll()
+                            } catch (e: any) { setActionResult(e.message) } finally { setActionLoading(null) }
+                          }}>
+                          Save cell ({picked.length} of 2)
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Intel feed: reports you filed, and reports to a side you lead or whose cell you're in */}
+            {intel.length > 0 && (
               <div style={{ marginTop: 8 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--bw-muted)', marginBottom: 12 }}>
-                  Intel Received ({intel.length})
+                  Intel ({intel.length})
                 </div>
                 <div className="stack stack-sm">
                   {intel.map((i: any) => (
                     <div key={i.id} className="card" style={{ userSelect: 'none' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                         <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--bw-gold)' }}>
-                          {i.intel_type.replace('_', ' ')}
+                          {i.intel_type.replace(/_/g, ' ')}{i.mine ? ' · your report' : ''}
                         </span>
                         <span style={{ fontSize: 10, color: 'var(--bw-muted)' }}>
-                          Expires {new Date(i.expires_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                          {i.bar_name ? `War at ${i.bar_name} · ` : ''}{new Date(i.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}{i.war_active ? '' : ' · war over'}
                         </span>
                       </div>
                       <div style={{ fontSize: 13, color: 'var(--bw-text)', lineHeight: 1.4, userSelect: 'none' }}>

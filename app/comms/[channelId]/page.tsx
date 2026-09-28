@@ -31,6 +31,7 @@ const TYPE_COLORS: Record<string, string> = {
   hessian: 'var(--bw-cyan)',
   regiment: 'var(--bw-cyan)',
   war_side: 'var(--bw-flare)',
+  intel_cell: 'var(--bw-gold)',
   battlefield: 'var(--bw-red)',
   direct: 'var(--bw-muted)',
 }
@@ -40,6 +41,7 @@ const TYPE_LABELS: Record<string, string> = {
   hessian: 'Hessian',
   regiment: 'Regiment',
   war_side: 'War Chat',
+  intel_cell: 'Intel Cell',
   battlefield: 'Battlefield',
   direct: 'Direct',
 }

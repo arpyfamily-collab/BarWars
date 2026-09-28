@@ -1,109 +1,99 @@
 import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth, ok, err } from '@/lib/challenges'
-import { getHandledAssetIds } from '@/lib/spy-handlers'
+import { spyError } from '@/lib/spy-errors'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/turf-wars/spies/intel
- * Returns intel the caller may read: reports they filed as a mole, and reports filed to a
- * side they lead (org leader or Hessian captain). Never includes who filed a report.
- * ?claim_id=xxx filters to a specific event.
+ * Intel the caller may read (Testing To-Do item 12): their own reports as a mole (always), and,
+ * while a war is on, reports to a side they lead or whose intel cell they joined before the
+ * report was filed. Never includes who filed a report.
+ * ?claim_id=xxx filters to one war. ?options=1 returns the wars the caller can report on.
  */
 export async function GET(req: NextRequest) {
   const { userId, error: authError } = await requireAuth()
   if (authError) return authError
-
   const { searchParams } = new URL(req.url)
-  const claimId = searchParams.get('claim_id')
-
   const service = createServiceClient()
 
-  const { data: myAssets } = await service
-    .from('spy_assets')
-    .select('id')
-    .eq('asset_user_id', userId!)
+  if (searchParams.get('options')) {
+    // Each active spy record: the wars its handler is in, and how many reports are left
+    const { data: assets } = await service
+      .from('spy_assets').select('id, handler_type, handler_org_id, handler_company_id, created_at')
+      .eq('asset_user_id', userId!).eq('is_active', true).eq('burned', false)
+    const out: any[] = []
+    for (const a of (assets as any[]) ?? []) {
+      let claimIds: string[] = []
+      if (a.handler_org_id) {
+        const { data } = await service.from('turf_claims').select('id')
+          .in('status', ['pending', 'operator_pending', 'live', 'contested'])
+          .or(`attacking_org_id.eq.${a.handler_org_id},defending_org_id.eq.${a.handler_org_id}`)
+        claimIds = ((data as any[]) ?? []).map(c => c.id)
+      } else if (a.handler_company_id) {
+        const { data } = await service.from('hessian_contracts').select('claim_id')
+          .eq('company_id', a.handler_company_id).in('status', ['accepted', 'betrayed', 'completed'])
+        const ids = ((data as any[]) ?? []).map(c => c.claim_id)
+        if (ids.length) {
+          const { data: live } = await service.from('turf_claims').select('id').in('id', ids)
+            .in('status', ['pending', 'operator_pending', 'live', 'contested'])
+          claimIds = ((live as any[]) ?? []).map(c => c.id)
+        }
+      }
+      if (claimIds.length === 0) continue
+      const { data: wars } = await service.from('turf_claims')
+        .select('id, window_open_at, window_close_at, bar:venues(name)').in('id', claimIds)
+      const { data: filed } = await service.from('spy_intel').select('claim_id').eq('asset_id', a.id).in('claim_id', claimIds)
+      for (const w of (wars as any[]) ?? []) {
+        const used = ((filed as any[]) ?? []).filter(f => f.claim_id === w.id).length
+        out.push({
+          asset_id: a.id,
+          handler: a.handler_type === 'hessian_company' ? 'Hessian company' : 'Greek org',
+          recruited: a.created_at,
+          claim_id: w.id,
+          bar: w.bar?.name ?? 'a bar',
+          window_open_at: w.window_open_at,
+          window_close_at: w.window_close_at,
+          reports_left: Math.max(0, 3 - used),
+        })
+      }
+    }
+    return ok(out)
+  }
 
-  const assetIds = new Set<string>(((myAssets as any[]) ?? []).map(a => a.id))
-  for (const id of await getHandledAssetIds(service, userId!)) assetIds.add(id)
-  if (assetIds.size === 0) return ok([])
-
-  let query = service
-    .from('spy_intel')
-    .select('id, intel_type, content, claim_id, expires_at, created_at')
-    .in('asset_id', Array.from(assetIds))
-    .gt('expires_at', new Date().toISOString())
-    .order('created_at', { ascending: false })
-    .limit(50)
-
-  if (claimId) query = query.eq('claim_id', claimId)
-
-  const { data, error } = await query
-  if (error) return err(error.message, 500)
-  return ok(data ?? [])
+  const { data, error } = await service.rpc('readable_intel', { p_user: userId! })
+  if (error) return err('Could not load intel. Try again.', 500)
+  const claimId = searchParams.get('claim_id')
+  return ok(((data as any[]) ?? []).filter(r => !claimId || r.claim_id === claimId))
 }
 
 /**
- * POST /api/turf-wars/spies/intel
- * Submit an intel report from a spy asset to their handler.
- * Body: { intel_type, content, claim_id? }
- * Intel expires after 24 hours.
+ * POST /api/turf-wars/spies/intel  { asset_id?, claim_id, intel_type, content }
+ * A mole files a report for one war (3 per spy per war, only while the war is on).
  */
 export async function POST(req: NextRequest) {
   const { userId, error: authError } = await requireAuth()
   if (authError) return authError
-
-  let body: { intel_type: string; content: string; claim_id?: string; asset_id?: string }
-  try { body = await req.json() }
-  catch { return err('Invalid JSON') }
-
-  if (!body.intel_type) return err('intel_type is required')
-  if (!['headcount', 'shots_fired_plan', 'war_declaration_plan', 'bar_observation'].includes(body.intel_type)) {
-    return err('Invalid intel_type')
-  }
-  if (!body.content || body.content.length < 5) return err('content is required (min 5 characters)')
-
+  let body: any
+  try { body = await req.json() } catch { return err('Invalid JSON') }
+  if (!body.claim_id) return err('Pick the war this report is about')
   const service = createServiceClient()
 
-  // The caller's active spy records. A double agent has one per handler and picks which
-  // handler gets this report (maybeSingle used to error on two rows, so double agents couldn't file).
-  const { data: assetRows, error: assetErr } = await service
-    .from('spy_assets')
-    .select('id, is_active, burned')
-    .eq('asset_user_id', userId!)
-    .eq('is_active', true)
-
-  if (assetErr) return err('Could not load your spy status. Try again.', 500)
-  const active = (assetRows as any[]) ?? []
-  if (active.length === 0) return err('You are not an active spy asset', 403)
-
-  let asset: any
-  if (body.asset_id) {
-    asset = active.find(a => a.id === body.asset_id)
-    if (!asset) return err('That handler is not one of yours', 403)
-  } else if (active.length === 1) {
-    asset = active[0]
-  } else {
-    return err('You report to more than one handler. Pick which one gets this report.', 422)
+  let assetId = body.asset_id
+  if (!assetId) {
+    const { data: mine } = await service.from('spy_assets').select('id')
+      .eq('asset_user_id', userId!).eq('is_active', true).eq('burned', false)
+    const rows = (mine as any[]) ?? []
+    if (rows.length === 0) return err('You are not an active spy asset', 403)
+    if (rows.length > 1) return err('You report to more than one handler. Pick which one gets this report.', 422)
+    assetId = rows[0].id
   }
-  if (asset.burned) return err('You have been burned. Your spy status is public.', 403)
 
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
-
-  const { data, error } = await service
-    .from('spy_intel')
-    .insert({
-      asset_id: (asset as any).id,
-      claim_id: body.claim_id ?? null,
-      intel_type: body.intel_type,
-      content: body.content,
-      expires_at: expiresAt.toISOString(),
-    })
-    .select('id, intel_type, expires_at')
-    .single()
-
-  if (error) return err(error.message, 500)
-
-  return ok({ ...data, message: 'Intel delivered. This report expires in 24 hours.' }, 201)
+  const { data, error } = await service.rpc('file_spy_intel', {
+    p_user: userId!, p_asset: assetId, p_claim: body.claim_id, p_type: body.intel_type, p_content: body.content,
+  })
+  if (error) { const e = spyError(error.message); return err(e.message, e.status) }
+  const left = (data as any)?.reports_left ?? 0
+  return ok({ ...(data as any), message: `Intel delivered to your handler's intel cell. ${left} report${left === 1 ? '' : 's'} left for this war.` }, 201)
 }

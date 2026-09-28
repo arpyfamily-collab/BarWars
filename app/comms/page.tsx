@@ -26,6 +26,7 @@ const TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.Re
   hessian:    { label: 'Hessian',    color: 'var(--bw-cyan)',   icon: <Users size={16} /> },
   regiment:   { label: 'Regiment',   color: 'var(--bw-cyan)',   icon: <Users size={16} /> },
   war_side:   { label: 'War Chat',   color: 'var(--bw-flare)',  icon: <Megaphone size={16} /> },
+  intel_cell: { label: 'Intel Cell', color: 'var(--bw-gold)',   icon: <Radio size={16} /> },
   battlefield:{ label: 'Battlefield',color: 'var(--bw-red)',    icon: <Radio size={16} /> },
   direct:     { label: 'Direct',     color: 'var(--bw-muted)',  icon: <MessageSquare size={16} /> },
 }
@@ -137,15 +138,15 @@ export default function CommsPage() {
         last_message_content: lastMsg?.content ?? null,
         last_message_at: lastMsg?.created_at ?? null,
         unread_count: unread,
-        is_live: (ch.channel_type === 'battlefield' || ch.channel_type === 'war_side') && ch.is_active,
+        is_live: ['battlefield', 'war_side', 'intel_cell'].includes(ch.channel_type) && ch.is_active,
       })
     }
 
     // Channels are created by the server: team chats when a faction forms, war chats when a war goes live
     setTeamChats(enriched.filter(c => ['war_room', 'hessian', 'regiment'].includes(c.channel_type)))
-    setWarChats(enriched.filter(c => c.channel_type === 'war_side' && c.is_active))
+    setWarChats(enriched.filter(c => ['war_side', 'intel_cell'].includes(c.channel_type) && c.is_active))
     setBattlefields(enriched.filter(c => c.channel_type === 'battlefield' && c.is_active))
-    setRecords(enriched.filter(c => ['war_side', 'battlefield'].includes(c.channel_type) && !c.is_active)
+    setRecords(enriched.filter(c => ['war_side', 'battlefield', 'intel_cell'].includes(c.channel_type) && !c.is_active)
       .sort((a, b) => (b.last_message_at ?? '').localeCompare(a.last_message_at ?? '')).slice(0, 10))
     setLoading(false)
   }, [supabase])
