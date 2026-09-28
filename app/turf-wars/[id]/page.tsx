@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import BottomNav from '@/components/BottomNav'
 import BattlePlanOffers from '@/components/BattlePlanOffers'
+import CommsWarfarePanel from '@/components/CommsWarfarePanel'
 import { scanQrCode, extractDoorCode } from '@/lib/scan-qr'
 import { Crosshair, Shield, Users, Clock, Flame, Zap, QrCode, Navigation, UserPlus, Copy, Check, Skull, AlertCircle } from 'lucide-react'
 
@@ -382,6 +383,9 @@ export default function TurfBattlePage() {
             📡 Share Watch Link (anyone can watch)
           </button>
         )}
+
+        {/* Comms warfare (item 18 Phase 2): jams, Command orders, forgeries */}
+        {(claim.status === 'live' || claim.status === 'contested') && <CommsWarfarePanel claimId={claim.id} />}
 
         {/* Battle Plan offers bars fired for this war (item 19) */}
         <BattlePlanOffers claimId={claim.id} />

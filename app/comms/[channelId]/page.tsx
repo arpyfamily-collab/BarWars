@@ -13,6 +13,7 @@ interface Message {
   content: string
   is_rally_call: boolean
   is_intel: boolean
+  is_command?: boolean
   created_at: string
   sender_name?: string | null
 }
@@ -67,6 +68,19 @@ export default function ChatPage() {
   const supabase = createClient()
 
   const [channel, setChannel] = useState<ChannelInfo | null>(null)
+  // Comms warfare (item 18 Phase 2): jam / Flare blackout, and decrypting Command notices
+  const [comms, setComms] = useState<{ frozen_until: string | null; reason: string | null; can_decrypt: boolean } | null>(null)
+  const [decrypted, setDecrypted] = useState<Record<string, string>>({})
+  useEffect(() => {
+    const load = () => fetch(`/api/comms/${channelId}/status`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => d && setComms(d)).catch(() => {})
+    load(); const t = setInterval(load, 15_000); return () => clearInterval(t)
+  }, [channelId])
+  async function decrypt(messageId: string) {
+    const r = await fetch('/api/comms/decrypt', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message_id: messageId }) })
+    const j = await r.json().catch(() => ({}))
+    setDecrypted(d => ({ ...d, [messageId]: !r.ok ? (j.error || 'Could not decrypt') : j.forged ? '⚠️ FORGED: this order did not come from your leader.' : '✅ Authentic: this order is real.' }))
+  }
+  const frozen = !!comms?.frozen_until && new Date(comms.frozen_until).getTime() > Date.now()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -92,7 +106,7 @@ export default function ChatPage() {
     const { data, error } = await supabase
       .from('messages')
       .select(`
-        id, channel_id, sender_id, content, is_rally_call, is_intel, created_at,
+        id, channel_id, sender_id, content, is_rally_call, is_intel, is_command, created_at,
         sender:public_profiles!messages_sender_id_fkey(display_name)
       `)
       .eq('channel_id', channelId)
@@ -110,6 +124,7 @@ export default function ChatPage() {
       content: m.content,
       is_rally_call: m.is_rally_call,
       is_intel: m.is_intel,
+      is_command: m.is_command,
       created_at: m.created_at,
       sender_name: m.sender?.display_name ?? null,
     }))
@@ -359,6 +374,22 @@ export default function ChatPage() {
             const isOwn = msg.sender_id === currentUserId
             const senderDisplay = isOwn ? 'You' : getSenderDisplay(msg)
 
+            if (msg.is_command) {
+              return (
+                <div key={msg.id} style={{ width: '100%', background: 'rgba(0,188,212,0.08)', border: '1px solid rgba(0,188,212,0.35)', borderRadius: 14, padding: '12px 14px' }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.15em', color: 'var(--bw-cyan)' }}>📜 COMMAND</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, marginTop: 4 }}>{msg.content.replace(/^COMMAND:\s*/, '')}</div>
+                  {decrypted[msg.id]
+                    ? <div style={{ fontSize: 12, marginTop: 6 }}>{decrypted[msg.id]}</div>
+                    : comms?.can_decrypt && (
+                      <button onClick={() => decrypt(msg.id)} style={{ marginTop: 8, fontSize: 11, padding: '3px 10px', background: 'transparent', border: '1px solid rgba(0,188,212,0.5)', color: 'var(--bw-cyan)', borderRadius: 8, cursor: 'pointer' }}>
+                        🔐 Decrypt (intel cell)
+                      </button>
+                    )}
+                </div>
+              )
+            }
+
             if (msg.is_rally_call) {
               return (
                 <div key={msg.id} style={{
@@ -471,7 +502,11 @@ export default function ChatPage() {
       )}
 
       {/* Read-only: spectating a Battlefield, or a finished war's record */}
-      {channel && !(channel.is_active && channel.is_member) ? (
+      {channel && channel.is_active && channel.is_member && frozen ? (
+        <div style={{ flexShrink: 0, padding: '14px 16px', borderTop: '1px solid #252D3D', background: '#13171F', fontSize: 13, color: 'var(--bw-cyan)', textAlign: 'center' }}>
+          {comms?.reason === 'blackout' ? '⚡ Flare blackout' : '📵 Signal jammed'}: no one can post here until {new Date(comms!.frozen_until!).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. Report and Block still work.
+        </div>
+      ) : channel && !(channel.is_active && channel.is_member) ? (
         <div style={{
           flexShrink: 0, padding: '14px 16px',
           borderTop: '1px solid #252D3D', background: '#13171F',
