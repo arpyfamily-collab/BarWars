@@ -2,6 +2,9 @@ import { createServiceClient } from '@/lib/supabase'
 import { ok } from '@/lib/challenges'
 
 export const dynamic = 'force-dynamic'
+// Never reuse a cached database response: the feed showed a stale empty list
+export const fetchCache = 'force-no-store'
+export const revalidate = 0
 
 /**
  * GET /api/turf-wars/feed
@@ -29,9 +32,7 @@ export async function GET() {
 
   if (error || !data) {
     console.error('[feed] query failed:', error?.message)
-    const res = ok([])
-    res.headers.set('x-feed-error', (error?.message ?? 'no data').slice(0, 200))
-    return res
+    return ok([])
   }
 
   const mapped = (data as any[]).map(e => ({

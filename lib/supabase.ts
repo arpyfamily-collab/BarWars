@@ -1,5 +1,6 @@
 import { createBrowserClient, createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { createClient as createSupabaseJsClient } from '@supabase/supabase-js'
 
 export function createClient() {
   return createBrowserClient(
@@ -30,9 +31,18 @@ export function createServerSupabaseClient() {
   )
 }
 
+/**
+ * Server-only client with the service role. A plain client: no browser session handling, and
+ * every request is no-store so Next.js never serves a cached database response (the war feed
+ * kept returning a stale empty list).
+ */
 export function createServiceClient() {
-  return createBrowserClient(
+  return createSupabaseJsClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { fetch: (input: any, init?: any) => fetch(input, { ...init, cache: 'no-store' }) },
+    }
   )
 }
