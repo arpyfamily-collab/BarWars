@@ -122,20 +122,60 @@ export async function POST(req: NextRequest) {
     .eq('verified', true)
     .maybeSingle()
 
-  if (!membership) {
-    return err('You must be a verified member of a Greek org to check in', 403)
+  const claimAny = claim as any
+  const warOrgs = [claimAny.attacking_org_id, claimAny.defending_org_id].filter(Boolean)
+
+  // 5. Which side does this check-in count for? (Testing To-Do item 25)
+  //    Members of either org count at 1x. Otherwise, a verified member of a Hessian company with an
+  //    accepted contract for this war, or a mercenary hired as a headcount filler, checks in for
+  //    the side that hired them at 0.75x (a Double Cross moves Hessian check-ins to the rival).
+  let userOrgId: string | null = null
+  let kind: 'member' | 'hessian' | 'mercenary' = 'member'
+  let weight = 1
+  let hessianContractId: string | null = null
+  let mercenaryContractId: string | null = null
+
+  if (membership && warOrgs.includes((membership as any).org_id)) {
+    userOrgId = (membership as any).org_id
+  } else {
+    const { data: hm } = await service
+      .from('hessian_members').select('company_id').eq('user_id', userId!).eq('verified', true).maybeSingle()
+    if (hm) {
+      const { data: contract } = await service
+        .from('hessian_contracts')
+        .select('id, org_id, status, agreed_weight, double_cross_org_id')
+        .eq('claim_id', body.claim_id).eq('company_id', (hm as any).company_id)
+        .in('status', ['accepted', 'betrayed'])
+        .maybeSingle()
+      const hc: any = contract
+      if (hc && warOrgs.includes(hc.org_id)) {
+        userOrgId = hc.org_id              // the referee applies a Double Cross when counting
+        kind = 'hessian'; weight = Number(hc.agreed_weight) || 0.75; hessianContractId = hc.id
+      }
+    }
+    if (!userOrgId) {
+      const { data: merc } = await service
+        .from('mercenaries').select('id').eq('user_id', userId!).eq('is_active', true).maybeSingle()
+      if (merc) {
+        const { data: mcs } = await service
+          .from('mercenary_contracts')
+          .select('id, hirer_org_id')
+          .eq('mercenary_id', (merc as any).id).eq('claim_id', body.claim_id)
+          .eq('status', 'accepted').eq('role', 'headcount_filler')
+        const mc = ((mcs as any[]) ?? []).find(m => warOrgs.includes(m.hirer_org_id))
+        if (mc) { userOrgId = mc.hirer_org_id; kind = 'mercenary'; weight = 0.75; mercenaryContractId = mc.id }
+      }
+    }
   }
 
-  const userOrgId = (membership as any).org_id
-  const claimAny = claim as any
+  if (!userOrgId) {
+    return err(membership
+      ? 'Your org is not involved in this war, and you have no contract for it.'
+      : 'Only members of the two orgs, or Hessians and mercenaries hired for this war, can check in.', 403)
+  }
 
-  // 5. Verify the user's org is involved in this claim (attacker or defender)
   const isAttacker = claimAny.attacking_org_id === userOrgId
   const isDefender = claimAny.defending_org_id === userOrgId
-
-  if (!isAttacker && !isDefender) {
-    return err('Your org is not involved in this turf claim', 403)
-  }
 
   // 6. For geo-pulse: verify location
   if (body.method === 'geo_pulse') {
@@ -175,6 +215,10 @@ export async function POST(req: NextRequest) {
       org_id: userOrgId,
       bar_id: body.bar_id,
       method: body.method,
+      kind,
+      headcount_weight: weight,
+      hessian_contract_id: hessianContractId,
+      mercenary_contract_id: mercenaryContractId,
     })
     .select('id, verified_at, method')
     .single()
@@ -256,6 +300,8 @@ export async function POST(req: NextRequest) {
     attacker_headcount: newAttackerCount,
     defender_headcount: newDefenderCount,
     required_headcount: claimAny.required_headcount,
+    checked_in_as: kind,
+    weight,
     claim_resolved: false,
     result: null,
     decided_at_window_close: true,

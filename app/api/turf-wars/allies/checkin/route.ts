@@ -121,6 +121,7 @@ export async function POST(req: NextRequest) {
       method: body.method,
       ally_id: body.ally_id,
       headcount_weight: weight,
+      kind: 'ally',
     })
     .select('id, verified_at, method, headcount_weight')
     .single()

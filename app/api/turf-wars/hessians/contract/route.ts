@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
       // Verify the rival org is the opposing side in this claim
       const { data: claim } = await service
         .from('turf_claims')
-        .select('attacking_org_id, defending_org_id')
+        .select('attacking_org_id, defending_org_id, bar_id')
         .eq('id', c.claim_id)
         .maybeSingle()
 
@@ -109,6 +109,9 @@ export async function POST(req: NextRequest) {
           resolved_at: now,
         })
         .eq('id', body.contract_id)
+
+      // The company's check-ins now count for the rival (Testing To-Do item 25)
+      await service.rpc('recount_turf_claim', { p_claim: c.claim_id })
 
       // Update company reputation: -10 for betrayal
       const compAny = company as any
@@ -144,7 +147,7 @@ export async function POST(req: NextRequest) {
         claim_id: c.claim_id,
         event_type: 'war_declared',
         org_id: c.org_id,
-        bar_id: (barData as any)?.bar?.id ?? null,
+        bar_id: claimAny.bar_id,   // was read from a query that never selected it, so the post never saved
         headline: `DOUBLE CROSS — ${compAny.name} betrayed ${orgData?.name ?? 'their employer'}`,
         body: `${compAny.name} was contracted by ${orgData?.name ?? 'an org'} but checked in for ${rivalData?.name ?? 'the rival'} instead. ${compAny.name}'s reputation drops. Let the record show: mercenaries don't owe loyalty.`,
         deep_link: `/turf-wars/${c.claim_id}`,

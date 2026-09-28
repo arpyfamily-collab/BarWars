@@ -107,7 +107,9 @@ export default function TurfBattlePage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
 
-      setCheckinResult(`Checked in! ${data.attacker_headcount ?? data.defender_headcount} verified at the bar.`)
+      setCheckinResult(data.checked_in_as === 'hessian' ? 'Checked in as a hired Hessian: you count 0.75 for the side that hired you.'
+        : data.checked_in_as === 'mercenary' ? 'Checked in as a hired mercenary: you count 0.75 for the side that hired you.'
+        : `Checked in! Your side has ${data.is_attacker ? data.attacker_headcount : data.defender_headcount} at the bar.`)
       fetchClaim()
     } catch (e: any) {
       setCheckinResult(e.message)
