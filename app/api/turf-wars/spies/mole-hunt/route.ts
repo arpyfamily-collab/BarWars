@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth, ok, err } from '@/lib/challenges'
+import { getLedHandlers } from '@/lib/spy-handlers'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,72 +26,30 @@ export async function POST(req: NextRequest) {
 
   const service = createServiceClient()
 
-  // ─── Resolve mole hunt (burn the spy) ───────────────────────────────────────
+  // ─── Resolve mole hunt ───────────────────────────────────────────────────────
+  // Leader only. Burns the suspect only if they really are a rival's active mole in the org;
+  // a wrong guess spends the hunt and posts nothing public (Brian, Sep 28, 2026).
   if (body.mole_hunt_id && body.suspected_mole_id) {
-    const { data: hunt, error: huntErr } = await service
-      .from('mole_hunts')
-      .select('id, org_id, status')
-      .eq('id', body.mole_hunt_id)
-      .maybeSingle()
-
-    if (huntErr) return err(huntErr.message, 500)
-    if (!hunt) return err('Mole hunt not found', 404)
-
-    const h = hunt as any
-    if (h.status !== 'active') return err('Mole hunt is already resolved', 409)
-
-    // Verify caller is org leadership
-    const { data: membership } = await service
-      .from('org_memberships')
-      .select('role')
-      .eq('org_id', h.org_id)
-      .eq('user_id', userId!)
-      .eq('verified', true)
-      .maybeSingle()
-
-    if (!membership) return err('Only org leadership can resolve a mole hunt', 403)
-
-    const now = new Date().toISOString()
-
-    // Mark mole hunt as resolved with mole found
-    await service
-      .from('mole_hunts')
-      .update({ status: 'mole_found', suspected_mole_id: body.suspected_mole_id, resolved_at: now })
-      .eq('id', body.mole_hunt_id)
-
-    // Burn the spy — deactivate all their active assets
-    await service
-      .from('spy_assets')
-      .update({ is_active: false, burned: true, burned_at: now, burned_by_org_id: h.org_id })
-      .eq('asset_user_id', body.suspected_mole_id)
-
-    // Award the "burned" badge — permanently visible on their profile
-    await service
-      .from('spy_badges')
-      .insert({
-        user_id: body.suspected_mole_id,
-        badge_type: 'burned',
-        awarded_by_org_id: h.org_id,
-        detail: `Burned: ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
-      })
-
-    // Public announcement
-    const { data: orgData } = await service
-      .from('greek_orgs')
-      .select('name')
-      .eq('id', h.org_id)
-      .single()
-
-    await service.from('turf_events').insert({
-      event_type: 'war_declared',
-      org_id: h.org_id,
-      headline: `MOLE BURNED — ${orgData?.name ?? 'An org'} exposed a spy in their ranks`,
-      body: `A member of ${orgData?.name ?? 'an org'} was burned as a spy. The "Burned" badge is now permanently visible on their profile. In the Hessian world, this is a badge of honor. In the Greek world, it's a mark of shame.`,
-      deep_link: '/turf-wars/spies',
-      visible_to: 'public',
+    const { data, error } = await service.rpc('resolve_mole_hunt', {
+      p_user: userId!,
+      p_hunt: body.mole_hunt_id,
+      p_suspect: body.suspected_mole_id,
     })
-
-    return ok({ mole_hunt_id: body.mole_hunt_id, status: 'mole_found', burned_user: body.suspected_mole_id })
+    if (error) {
+      const m = error.message || ''
+      if (m.includes('HUNT_NOT_FOUND')) return err('Mole hunt not found', 404)
+      if (m.includes('HUNT_ALREADY_RESOLVED')) return err('Mole hunt is already resolved', 409)
+      if (m.includes('NOT_ORG_LEADER')) return err('Only your org leader can resolve a mole hunt', 403)
+      return err('Could not resolve the mole hunt', 500)
+    }
+    const status = (data as any)?.status
+    return ok({
+      mole_hunt_id: body.mole_hunt_id,
+      status,
+      message: status === 'mole_found'
+        ? 'Mole burned. Their spy status is now public.'
+        : 'No mole there. Your hunt is spent for this semester.',
+    })
   }
 
   // ─── Activate a new mole hunt ───────────────────────────────────────────────
@@ -100,17 +59,11 @@ export async function POST(req: NextRequest) {
     return err('fake_claim_type must be sneak_attack or war_declaration')
   }
 
-  // Verify caller is verified org member
-  const { data: membership } = await service
-    .from('org_memberships')
-    .select('org_id')
-    .eq('user_id', userId!)
-    .eq('verified', true)
-    .maybeSingle()
+  // Only the org leader can plant false intelligence
+  const led = await getLedHandlers(service, userId!)
+  if (led.orgIds.length === 0) return err('Only your org leader can run a mole hunt', 403)
 
-  if (!membership) return err('You must be a verified org member to run a mole hunt', 403)
-
-  const orgId = (membership as any).org_id
+  const orgId = led.orgIds[0]
 
   // Check for existing active mole hunt (one per semester — ~6 months)
   const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString()

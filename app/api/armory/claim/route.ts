@@ -1,68 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+
+/**
+ * POST /api/armory/claim  { armory_id }
+ * One claim per player per rolling 7 days, never your own donation. The database function
+ * claim_armory enforces both, so direct table writes can't get around them (To-Do item 13).
+ */
 export async function POST(req: NextRequest) {
   const supabase = createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const body = await req.json()
-  const { armory_id } = body
-
-  if (!armory_id || typeof armory_id !== 'string') {
+  let body: any
+  try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  const armoryId = body?.armory_id
+  if (!armoryId || typeof armoryId !== 'string') {
     return NextResponse.json({ error: 'Missing armory_id' }, { status: 400 })
   }
 
   const service = createServiceClient()
+  const { data, error } = await service.rpc('claim_armory', { p_user: user.id, p_armory: armoryId })
 
-  // Check the user hasn't already claimed a bracelet in the last 7 days
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-  const { data: recentClaim } = await service
-    .from('armory')
-    .select('id')
-    .eq('claimed_by', user.id)
-    .gte('claimed_at', sevenDaysAgo)
-    .limit(1)
-    .maybeSingle()
-
-  if (recentClaim) {
-    return NextResponse.json(
-      { error: 'You already claimed a bracelet this week. Come back next week.' },
-      { status: 429 }
-    )
+  if (error) {
+    const m = error.message || ''
+    if (m.includes('WEEKLY_LIMIT')) {
+      return NextResponse.json({ error: 'You already claimed a bracelet this week. Come back next week.' }, { status: 429 })
+    }
+    if (m.includes('OWN_DONATION')) {
+      return NextResponse.json({ error: "That's your own donation. Leave it for someone else." }, { status: 403 })
+    }
+    if (m.includes('NOT_AVAILABLE') || m.includes('invalid input syntax')) {
+      return NextResponse.json({ error: 'This bracelet is no longer available.' }, { status: 409 })
+    }
+    return NextResponse.json({ error: 'Could not claim that bracelet. Try again.' }, { status: 500 })
   }
 
-  // Verify the item is still available
-  const { data: item } = await service
-    .from('armory')
-    .select('id, status')
-    .eq('id', armory_id)
-    .eq('status', 'available')
-    .maybeSingle()
-
-  if (!item) {
-    return NextResponse.json({ error: 'This bracelet is no longer available.' }, { status: 404 })
-  }
-
-  // Claim it — atomic update with status guard
-  const { data: claimed, error } = await service
-    .from('armory')
-    .update({
-      status: 'claimed',
-      claimed_by: user.id,
-      claimed_at: new Date().toISOString(),
-    })
-    .eq('id', armory_id)
-    .eq('status', 'available')
-    .select('id, offer_value')
-    .single()
-
-  if (error || !claimed) {
-    return NextResponse.json({ error: 'Someone else grabbed it first. Try another.' }, { status: 409 })
-  }
-
-  return NextResponse.json({ success: true, claimed })
+  return NextResponse.json({ success: true, claimed: data })
 }

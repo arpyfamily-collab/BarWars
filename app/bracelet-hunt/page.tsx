@@ -159,8 +159,9 @@ export default function BraceletHuntPage() {
 
     try {
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
+      if (!session || !user) {
         setError('You must be signed in to scan bracelets.')
         setScanning(false)
         return
@@ -170,7 +171,8 @@ export default function BraceletHuntPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({ qr_token: qrToken.trim(), user_id: user.id, action: null }),
       })
@@ -197,14 +199,16 @@ export default function BraceletHuntPage() {
 
     try {
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
+      if (!session || !user) return
 
       const res = await fetch(`${SUPABASE_URL}/functions/v1/bracelet-scan`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({
           qr_token: qrToken.trim() || scanResult.bracelet.id,

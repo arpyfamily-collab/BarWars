@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth, ok, err } from '@/lib/challenges'
+import { getHandledAssetIds } from '@/lib/spy-handlers'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,39 +21,16 @@ export async function GET(req: NextRequest) {
     .select('id, spy_type, handler_type, is_active, burned, burned_at, created_at')
     .eq('asset_user_id', userId!)
 
-  // Assets where caller is the handler (org)
-  const { data: orgMemberships } = await service
-    .from('org_memberships')
-    .select('org_id')
-    .eq('user_id', userId!)
-    .eq('verified', true)
-
-  const orgIds = ((orgMemberships as any[]) ?? []).map(m => m.org_id)
+  // Assets the caller handles as org leader or Hessian captain (no identities)
+  const handledIds = await getHandledAssetIds(service, userId!)
   let handledAssets: any[] = []
-
-  if (orgIds.length > 0) {
+  if (handledIds.length > 0) {
     const { data } = await service
       .from('spy_assets')
       .select('id, spy_type, is_active, burned, created_at')
-      .in('handler_org_id', orgIds)
+      .in('id', handledIds)
       .eq('is_active', true)
-    handledAssets = [...((data as any[]) ?? [])]
-  }
-
-  // Assets where caller is the handler (Hessian company)
-  const { data: myCompany } = await service
-    .from('hessian_companies')
-    .select('id')
-    .eq('captain_id', userId!)
-    .maybeSingle()
-
-  if (myCompany) {
-    const { data: companyAssets } = await service
-      .from('spy_assets')
-      .select('id, spy_type, is_active, burned, created_at')
-      .eq('handler_company_id', (myCompany as any).id)
-      .eq('is_active', true)
-    handledAssets = [...handledAssets, ...((companyAssets as any[]) ?? [])]
+    handledAssets = (data as any[]) ?? []
   }
 
   // Also get pending recruitments and badges

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth, ok, err } from '@/lib/challenges'
+import { getLedHandlers } from '@/lib/spy-handlers'
 
 export const dynamic = 'force-dynamic'
 
@@ -195,14 +196,9 @@ export async function POST(req: NextRequest) {
   let companyId: string | null = null
 
   if (body.recruiter_type === 'rival_org') {
-    const { data: membership } = await service
-      .from('org_memberships')
-      .select('org_id')
-      .eq('user_id', userId!)
-      .eq('verified', true)
-      .maybeSingle()
-    if (!membership) return err('You must be a verified org member to send approaches', 403)
-    orgId = (membership as any).org_id
+    const led = await getLedHandlers(service, userId!)
+    if (led.orgIds.length === 0) return err('Only your org leader can send approaches', 403)
+    orgId = led.orgIds[0]
   } else {
     const { data: company } = await service
       .from('hessian_companies')

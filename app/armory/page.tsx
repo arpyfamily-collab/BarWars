@@ -2,18 +2,23 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase-client'
 import BottomNav from '@/components/BottomNav'
 import { Shield, Gift, TrendingUp, Clock } from 'lucide-react'
 
 interface ArmoryItem {
   id: string
-  offer_type: string
-  offer_value: string
-  status: string
   created_at: string
-  current_venue_id: string | null
-  venues: { name: string } | null
+  bar_name: string | null
+  offer_type: string | null
+  offer_value: string | null
+  mine: boolean
+}
+
+// Drinks are 21+; the bar checks ID when the bracelet is redeemed (To-Do item 13)
+function isDrinkOffer(item: ArmoryItem): boolean {
+  if (item.offer_type === 'drink') return true
+  return /\b(drink|drinks|beer|beers|shot|shots|well|wells|cocktail|wine|pitcher|bucket|margarita|seltzer)\b/i
+    .test(item.offer_value ?? '')
 }
 
 interface ArmoryStats {
@@ -39,68 +44,32 @@ export default function ArmoryPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
+  const [nextClaimAt, setNextClaimAt] = useState<string | null>(null)
+
   const loadArmory = useCallback(async () => {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    const { data: available } = await supabase
-      .from('armory')
-      .select(`
-        id, offer_type, offer_value, status, created_at, current_venue_id,
-        venues:current_venue_id(name)
-      `)
-      .eq('status', 'available')
-      .order('created_at', { ascending: false })
-
-    setItems((available as unknown as ArmoryItem[]) ?? [])
-
-    const { count: total } = await supabase
-      .from('armory')
-      .select('*', { count: 'exact', head: true })
-
-    const { count: availableCount } = await supabase
-      .from('armory')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'available')
-
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-    const { count: claimedWeek } = await supabase
-      .from('armory')
-      .select('*', { count: 'exact', head: true })
-      .not('claimed_at', 'is', null)
-      .gte('claimed_at', sevenDaysAgo)
-
-    setStats({
-      totalDonated: total ?? 0,
-      availableNow: availableCount ?? 0,
-      claimedThisWeek: claimedWeek ?? 0,
-    })
-
-    if (user) {
-      const { data: myClaims } = await supabase
-        .from('armory')
-        .select('id')
-        .eq('claimed_by', user.id)
-        .gte('claimed_at', sevenDaysAgo)
-        .limit(1)
-
-      setClaimedThisWeek((myClaims ?? []).length > 0)
+    try {
+      const res = await fetch('/api/armory', { cache: 'no-store' })
+      const data = await res.json()
+      if (res.ok) {
+        setItems(data.items ?? [])
+        setStats(data.stats ?? { totalDonated: 0, availableNow: 0, claimedThisWeek: 0 })
+        setClaimedThisWeek(!!data.claimedThisWeek)
+        setNextClaimAt(data.nextClaimAt ?? null)
+      } else {
+        setError(data.error || 'Could not load the Armory')
+      }
+    } catch {
+      setError('Network error — try again')
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }, [])
 
   useEffect(() => {
     loadArmory()
-
-    const supabase = createClient()
-    const channel = supabase.channel('armory-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'armory' }, () => {
-        loadArmory()
-      })
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
+    // The shelf changes as others donate and claim; refresh every 30 seconds while open
+    const timer = setInterval(loadArmory, 30000)
+    return () => clearInterval(timer)
   }, [loadArmory])
 
   const handleClaim = async (armoryId: string) => {
@@ -119,7 +88,7 @@ export default function ArmoryPage() {
       if (!res.ok) {
         setError(data.error || 'Failed to claim')
       } else {
-        setSuccess('Bracelet claimed! Show it at the bar to redeem your reward.')
+        setSuccess(`Bracelet claimed! Show it at ${data.claimed?.bar_name ?? 'the bar'} to redeem it.`)
         setClaimedThisWeek(true)
         loadArmory()
       }
@@ -144,6 +113,9 @@ export default function ArmoryPage() {
         </div>
         <div style={{ fontSize: 13, color: 'var(--bw-muted)', marginTop: 4 }}>
           Donated bracelets up for grabs. One claim per week.
+          {claimedThisWeek && nextClaimAt && (
+            <> Your next claim opens {new Date(nextClaimAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}.</>
+          )}
         </div>
       </div>
 
@@ -202,7 +174,7 @@ export default function ArmoryPage() {
             <div style={{ fontSize: 13, color: 'var(--bw-muted)', marginBottom: 16 }}>
               Find a bracelet and donate it to stock the shelves.
             </div>
-            <Link href="/drops" className="btn btn-primary" style={{ display: 'inline-block', textDecoration: 'none', fontSize: 13, padding: '10px 20px' }}>
+            <Link href="/bracelet-hunt" className="btn btn-primary" style={{ display: 'inline-block', textDecoration: 'none', fontSize: 13, padding: '10px 20px' }}>
               Find bracelets
             </Link>
           </div>
@@ -221,7 +193,7 @@ export default function ArmoryPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     {/* Bar name */}
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--bw-text)', marginBottom: 4 }}>
-                      {item.venues?.name ?? 'Unknown bar'}
+                      {item.bar_name ?? 'Unknown bar'}
                     </div>
 
                     {/* Offer */}
@@ -238,6 +210,11 @@ export default function ArmoryPage() {
                       }}>
                         {item.offer_value}
                       </div>
+                      {isDrinkOffer(item) && (
+                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--bw-muted)', letterSpacing: '0.04em' }}>
+                          21+ with valid ID at the bar
+                        </span>
+                      )}
                     </div>
 
                     {/* Donated by + time */}
@@ -248,7 +225,26 @@ export default function ArmoryPage() {
 
                   {/* Claim button */}
                   <div style={{ flexShrink: 0 }}>
-                    {claimedThisWeek ? (
+                    {item.mine ? (
+                      <button
+                        disabled
+                        style={{
+                          background: 'var(--bw-surface)',
+                          border: '1px solid var(--bw-border)',
+                          borderRadius: 8,
+                          padding: '8px 14px',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          letterSpacing: '0.06em',
+                          textTransform: 'uppercase',
+                          color: 'var(--bw-muted)',
+                          cursor: 'not-allowed',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Your donation
+                      </button>
+                    ) : claimedThisWeek ? (
                       <button
                         disabled
                         style={{

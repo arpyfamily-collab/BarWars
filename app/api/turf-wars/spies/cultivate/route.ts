@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth, ok, err } from '@/lib/challenges'
+import { getLedHandlers } from '@/lib/spy-handlers'
 
 export const dynamic = 'force-dynamic'
 
@@ -108,24 +109,11 @@ export async function POST(req: NextRequest) {
 
     // Verify caller is the cultivator
     const c = cult as any
-    if (c.cultivator_org_id) {
-      const { data: m } = await service
-        .from('org_memberships')
-        .select('id')
-        .eq('org_id', c.cultivator_org_id)
-        .eq('user_id', userId!)
-        .eq('verified', true)
-        .maybeSingle()
-      if (!m) return err('Only the cultivator can rate', 403)
-    } else if (c.cultivator_company_id) {
-      const { data: comp } = await service
-        .from('hessian_companies')
-        .select('id')
-        .eq('id', c.cultivator_company_id)
-        .eq('captain_id', userId!)
-        .maybeSingle()
-      if (!comp) return err('Only the cultivator can rate', 403)
-    }
+    const ledSides = await getLedHandlers(service, userId!)
+    const isCultivator =
+      (c.cultivator_org_id && ledSides.orgIds.includes(c.cultivator_org_id)) ||
+      (c.cultivator_company_id && ledSides.companyIds.includes(c.cultivator_company_id))
+    if (!isCultivator) return err('Only the cultivator can rate', 403)
 
     await service
       .from('spy_cultivations')
@@ -141,19 +129,10 @@ export async function POST(req: NextRequest) {
     return err('Invalid offer_type')
   }
 
-  // Determine cultivator (org or Hessian company)
-  const { data: membership } = await service
-    .from('org_memberships')
-    .select('org_id')
-    .eq('user_id', userId!)
-    .eq('verified', true)
-    .maybeSingle()
-
-  const { data: company } = await service
-    .from('hessian_companies')
-    .select('id')
-    .eq('captain_id', userId!)
-    .maybeSingle()
+  // Determine cultivator: only an org leader or a Hessian captain
+  const led = await getLedHandlers(service, userId!)
+  const membership = led.orgIds.length > 0 ? { org_id: led.orgIds[0] } : null
+  const company = led.companyIds.length > 0 ? { id: led.companyIds[0] } : null
 
   if (!membership && !company) return err('You must be an org leader or Hessian Captain to cultivate assets', 403)
 
@@ -206,14 +185,9 @@ export async function GET(req: NextRequest) {
     .eq('target_user_id', userId!)
     .order('created_at', { ascending: false })
 
-  // As cultivator (org)
-  const { data: orgMemberships } = await service
-    .from('org_memberships')
-    .select('org_id')
-    .eq('user_id', userId!)
-    .eq('verified', true)
-
-  const orgIds = ((orgMemberships as any[]) ?? []).map(m => m.org_id)
+  // As cultivator: only the leader of the cultivating side
+  const ledSides = await getLedHandlers(service, userId!)
+  const orgIds = ledSides.orgIds
 
   let asCultivator: any[] = []
   if (orgIds.length > 0) {
@@ -225,18 +199,12 @@ export async function GET(req: NextRequest) {
     asCultivator = (data as any[]) ?? []
   }
 
-  // As cultivator (Hessian company)
-  const { data: myCompany } = await service
-    .from('hessian_companies')
-    .select('id')
-    .eq('captain_id', userId!)
-    .maybeSingle()
-
-  if (myCompany) {
+  // As cultivator (Hessian company captain)
+  if (ledSides.companyIds.length > 0) {
     const { data: companyCults } = await service
       .from('spy_cultivations')
       .select('id, offer_type, status, intel_quality_rating, created_at, target_user_id')
-      .eq('cultivator_company_id', (myCompany as any).id)
+      .in('cultivator_company_id', ledSides.companyIds)
       .order('created_at', { ascending: false })
     asCultivator = [...asCultivator, ...((companyCults as any[]) ?? [])]
   }
