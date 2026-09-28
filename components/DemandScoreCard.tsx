@@ -152,7 +152,6 @@ export default function DemandScoreCard({ venueId, date, baseFullVenueCents }: P
           { label: 'Full venue price', value: `$${(recommendedPrice / 100).toFixed(0)}` },
           { label: 'Release date',     value: releaseDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) },
           { label: 'Pass cap',         value: data.recommended_pass_limit ? `${data.recommended_pass_limit} max` : 'No cap' },
-          { label: 'Ambassador boost', value: data.ambassador_incentive_boost > 0 ? `+${data.ambassador_incentive_boost}% commission` : 'Standard' },
         ].map(r => (
           <div key={r.label} style={{ background: 'var(--bw-surface)', borderRadius: 8, padding: '10px 12px' }}>
             <div style={{ fontSize: 10, color: 'var(--bw-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
@@ -163,11 +162,6 @@ export default function DemandScoreCard({ venueId, date, baseFullVenueCents }: P
         ))}
       </div>
 
-      {data.ambassador_incentive_boost > 0 && (
-        <div style={{ background: 'rgba(245,184,0,0.08)', border: '1px solid rgba(245,184,0,0.2)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--bw-gold)' }}>
-          🚀 High-demand night — ambassador commission boosted +{data.ambassador_incentive_boost}% to drive early sales
-        </div>
-      )}
     </div>
   )
 }
