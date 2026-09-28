@@ -23,6 +23,8 @@ export default async function BarAdminLayout({
     .from('bar_admins')
     .select('bar_id, is_bar_asset, venues:bar_id ( id, name )')
     .eq('user_id', user.id)
+    // Bar-asset rows are employees working as spies (item 11), never managers: no Command Center
+    .or('is_bar_asset.is.null,is_bar_asset.eq.false')
 
   if (!memberships || memberships.length === 0) {
     redirect('/?err=not_bar_admin')

@@ -77,6 +77,7 @@ export default function BarCommandCenter() {
         .from('bar_admins')
         .select('bar_id, venues:bar_id ( id, name )')
         .eq('user_id', user.id)
+        .or('is_bar_asset.is.null,is_bar_asset.eq.false')
 
       const vs: Venue[] = (data ?? [])
         .map((r: any) => r.venues)
