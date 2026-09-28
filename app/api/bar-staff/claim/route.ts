@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   if (error) return error
   let body: any
   try { body = await req.json() } catch { return err('Invalid JSON') }
-  const { error: e } = await createServiceClient().rpc('claim_staff_invite', { p_user: userId, p_token: String(body.token ?? '') })
+  const { data, error: e } = await createServiceClient().rpc('claim_staff_invite', { p_user: userId, p_token: String(body.token ?? '') })
   if (e) return err(e.message.includes('AGE_REQUIRED') ? 'Confirm you are 18 or older on your account first.' : "This link isn't valid.", 400)
-  return ok({ ok: true })
+  return ok({ ok: true, kind: (data as any)?.kind ?? 'staff_spy' })
 }

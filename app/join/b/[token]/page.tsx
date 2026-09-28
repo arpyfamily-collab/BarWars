@@ -14,7 +14,7 @@ export default function StaffInvitePage({ params }: { params: { token: string } 
     const j = await r.json().catch(() => ({}))
     setBusy(false)
     if (!r.ok) { setMsg(j.error || "This link isn't valid."); return }
-    router.push('/turf-wars/spies')
+    router.push(j.kind === 'door' ? '/door' : '/turf-wars/spies')
   }
   return (
     <div className="page"><div className="page-content" style={{ maxWidth: 480, margin: '0 auto', paddingTop: 48 }}>

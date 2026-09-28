@@ -1,6 +1,8 @@
 'use client'
 
 import BattlePlansTab from './BattlePlansTab'
+import StaffSpiesPanel from './StaffSpiesPanel'
+import { scanQrCode } from '@/lib/scan-qr'
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase-client'
 
@@ -440,6 +442,12 @@ function BraceletsTab({ venueId, userId }: { venueId: string; userId: string }) 
   const [clue2, setClue2] = useState('')
   const [clue3, setClue3] = useState('')
   const [offerType, setOfferType] = useState<'no_cover' | 'drink' | 'other'>('no_cover')
+  // Inventory (Brian, Sep 28): the band is scanned when it arrives and again when it's hidden
+  const [band, setBand] = useState('')
+  const [night, setNight] = useState('')
+  const [nights, setNights] = useState(1)
+  const [summary, setSummary] = useState<any>(null)
+  const [receiveMsg, setReceiveMsg] = useState<string | null>(null)
   const [offerValue, setOfferValue] = useState('')
   const [release2, setRelease2] = useState('')
   const [release3, setRelease3] = useState('')
@@ -464,6 +472,8 @@ function BraceletsTab({ venueId, userId }: { venueId: string; userId: string }) 
     ])
     setThisWeek(countRes.count ?? 0)
     setActive(activeRes.data ?? [])
+    const sr = await fetch(`/api/bar-admin/bracelets?venue_id=${venueId}`, { cache: 'no-store' })
+    if (sr.ok) { const d = await sr.json(); setSummary(d); setNight(n => n || d.tonight) }
   }, [supabase, venueId])
 
   useEffect(() => { reload() }, [reload])
@@ -477,22 +487,17 @@ function BraceletsTab({ venueId, userId }: { venueId: string; userId: string }) 
     }
     setSaving(true)
     try {
-      const { error: insErr } = await supabase.from('bracelet_drops').insert({
-        venue_id: venueId,
-        clue_1: clue1.trim(),
-        clue_2: clue2.trim() || null,
-        clue_3: clue3.trim() || null,
-        clue_1_released_at: new Date().toISOString(),
-        clue_2_released_at: release2 ? new Date(release2).toISOString() : null,
-        clue_3_released_at: release3 ? new Date(release3).toISOString() : null,
-        offer_type: offerType,
-        offer_value: offerValue.trim() || null,
-        status: 'hidden',
-        hidden_by: userId,
-        drop_week: mondayISO(),
+      if (!band) throw new Error('Scan the band you are hiding first.')
+      const res = await fetch('/api/bar-admin/bracelets', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ venue_id: venueId, action: 'hide', code: band, clue1: clue1.trim(), clue2: clue2.trim(), clue3: clue3.trim(),
+          release2, release3, offer_type: offerType, offer_value: offerValue.trim(), night, nights }),
       })
+      const hj = await res.json().catch(() => ({}))
+      const insErr = res.ok ? null : new Error(hj.error || 'Could not hide the bracelet.')
       if (insErr) throw insErr
-      setSuccess('Bracelet hidden. Clue 1 is live now.')
+      setSuccess(`Bracelet hidden. Clue 1 is live now. Good for ${nights === 1 ? night : `${nights} nights from ${night}`}.`)
+      setBand('')
       setClue1(''); setClue2(''); setClue3('')
       setOfferValue(''); setRelease2(''); setRelease3('')
       await reload()
@@ -520,8 +525,56 @@ function BraceletsTab({ venueId, userId }: { venueId: string; userId: string }) 
         </div>
       </Panel>
 
+      {summary && (
+        <Panel>
+          <SectionTitle icon="🌙" title="Tonight" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, fontSize: 12, color: C.textDim }}>
+            <div><div style={{ fontSize: 22, color: C.text }}>{summary.in_stock}</div>bands in stock</div>
+            <div><div style={{ fontSize: 22, color: C.text }}>{summary.hidden_tonight}</div>hidden, good tonight</div>
+            <div><div style={{ fontSize: 22, color: C.text }}>{summary.held_valid_tonight}</div>found, not used yet</div>
+            <div><div style={{ fontSize: 22, color: C.text }}>{summary.redeemed_tonight}</div>redeemed at the door</div>
+          </div>
+          {summary.printed_not_received > 0 && <div style={{ fontSize: 12, color: C.textFaint, marginTop: 8 }}>{summary.printed_not_received} printed band(s) not scanned in yet.</div>}
+          <div style={{ fontSize: 12, color: C.textFaint, marginTop: 8 }}>Door staff check vouchers at <b>app.barwars.app/door</b>.</div>
+        </Panel>
+      )}
+
+      <Panel>
+        <SectionTitle icon="📦" title="Receive bands" />
+        <div style={{ fontSize: 12, color: C.textDim, marginBottom: 12 }}>When a pack of BarWars bands arrives, scan each tag. A band has to be scanned in before it can be hidden.</div>
+        <button onClick={async () => {
+            setReceiveMsg(null)
+            try {
+              const raw = await scanQrCode()
+              if (!raw) { setReceiveMsg("Couldn't read a tag. Try again with more light."); return }
+              const r = await fetch('/api/bar-admin/bracelets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ venue_id: venueId, action: 'receive', code: raw }) })
+              const j = await r.json().catch(() => ({}))
+              setReceiveMsg(!r.ok ? j.error : j.already ? 'Already scanned in.' : `Received. ${j.in_stock} band(s) in stock.`)
+              reload()
+            } catch { setReceiveMsg('Camera error. Try again.') }
+          }} style={{ ...inputStyle, cursor: 'pointer', textAlign: 'center', fontWeight: 700 }}>📷 Scan a band in</button>
+        {receiveMsg && <div style={{ fontSize: 13, marginTop: 8, color: C.text }}>{receiveMsg}</div>}
+      </Panel>
+
       <Panel>
         <SectionTitle icon="🎁" title="Hide a Bracelet" />
+        <Field label="Band">
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input value={band ? `…${band.slice(-8)}` : ''} readOnly placeholder="Scan the band you're hiding" style={inputStyle} />
+            <button onClick={async () => { try { const raw = await scanQrCode(); const m = raw?.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i); if (m) setBand(m[0]); else setError("Couldn't read a BarWars tag.") } catch {} }}
+              style={{ ...inputStyle, width: 'auto', cursor: 'pointer' }}>📷 Scan</button>
+          </div>
+        </Field>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+          <Field label="Good for the night of">
+            <input type="date" value={night} onChange={(e) => setNight(e.target.value)} style={inputStyle} />
+          </Field>
+          <Field label="Nights">
+            <select value={nights} onChange={(e) => setNights(Number(e.target.value))} style={inputStyle}>
+              {[1, 2, 3, 4, 5, 6, 7].map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </Field>
+        </div>
         <div style={{ fontSize: 12, color: C.textDim, marginBottom: 12 }}>
           Players see only your clues and the offer, never your bar&apos;s name. Keep it a mystery: don&apos;t name the bar in any clue or the offer.
         </div>
@@ -577,6 +630,8 @@ function BraceletsTab({ venueId, userId }: { venueId: string; userId: string }) 
           {saving ? 'Hiding…' : 'Hide Bracelet'}
         </button>
       </Panel>
+
+      <StaffSpiesPanel venueId={venueId} kind="door" />
 
       <Panel>
         <SectionTitle title={`Recent Drops (${active.length})`} />

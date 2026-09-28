@@ -9,6 +9,12 @@ import { Capacitor } from '@capacitor/core'
 import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera'
 import jsQR from 'jsqr'
 
+// Band tags encode app.barwars.app/b/<code> (so a phone camera works too); older tags hold the bare code
+function bandCode(raw: string): string {
+  const m = raw.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
+  return m ? m[0] : raw.trim()
+}
+
 // The Hunt list never includes the bar, bar ID or QR code: the bar is a surprise until scanned
 interface BraceletDrop {
   id: string
@@ -139,7 +145,7 @@ export default function BraceletHuntPage() {
 
       const code = jsQR(imageData.data, imageData.width, imageData.height)
       if (code) {
-        setQrToken(code.data)
+        setQrToken(bandCode(code.data))
         setShowScanInput('native-result')
       } else {
         setError('No QR code detected. Try again or enter the code manually.')
@@ -174,7 +180,7 @@ export default function BraceletHuntPage() {
           'Authorization': `Bearer ${session.access_token}`,
           'apikey': SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({ qr_token: qrToken.trim(), user_id: user.id, action: null }),
+        body: JSON.stringify({ qr_token: bandCode(qrToken), user_id: user.id, action: null }),
       })
       const data = await res.json()
 
@@ -211,7 +217,7 @@ export default function BraceletHuntPage() {
           'apikey': SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({
-          qr_token: qrToken.trim() || scanResult.bracelet.id,
+          qr_token: bandCode(qrToken) || scanResult.bracelet.id,
           user_id: user.id,
           action,
         }),
