@@ -5,6 +5,7 @@
  * spy or support mercenary without a university email. Never shown anywhere in the student app.
  */
 import { useCallback, useEffect, useState } from 'react'
+import { printDoorCard } from './doorCard'
 
 const C = { panel: '#111114', border: 'rgba(255,255,255,0.06)', dim: '#9CA3AF', gold: '#C9A84C', green: '#22C55E', red: '#E03131' }
 const small: React.CSSProperties = { padding: '6px 12px', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 6, color: C.dim, fontSize: 12, cursor: 'pointer' }
@@ -43,6 +44,13 @@ export default function StaffSpiesPanel({ venueId, kind = 'staff_spy' }: { venue
           Create link
         </button>
       </div>
+      {door && (
+        <button style={{ ...small, marginTop: 8 }} onClick={async () => {
+          const r = await fetch(`/api/bar-admin/door-code?venue_id=${venueId}`, { cache: 'no-store' })
+          const j = r.ok ? await r.json() : {}
+          await printDoorCard((j as any).name ?? 'Your bar')
+        }}>🖨️ Print door card</button>
+      )}
       {link && (
         <div style={{ marginTop: 10, fontSize: 12 }}>
           <div style={{ wordBreak: 'break-all', color: C.green }}>{link}</div>
