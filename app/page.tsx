@@ -20,7 +20,7 @@ export default async function HomePage() {
 
   const { data: events } = await supabase
     .from('events')
-    .select('*, venues(*)')
+    .select('*, venues(id, name, slug, logo_url, image_url)')
     .gte('date', today)
     .order('date', { ascending: true })
     .limit(10)

@@ -21,7 +21,7 @@ import { requireAuth, ok, err } from '@/lib/challenges'
  *   8. Burner detection — new accounts with zero social connections are flagged
  *   9. .edu verification required for high-stakes roles (Greek members)
  *
- * Body: { claim_id, bar_id, method, latitude?, longitude?, device_id? }
+ * Body: { claim_id, bar_id, method, latitude?, longitude?, code? (door code, required for qr_scan), device_id? }
  */
 export async function POST(req: NextRequest) {
   const { userId, error: authError } = await requireAuth()
@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
     latitude?: number
     longitude?: number
     device_id?: string
+    code?: string
   }
   try { body = await req.json() }
   catch { return err('Invalid JSON') }
@@ -201,6 +202,17 @@ export async function POST(req: NextRequest) {
       if (distance > 100) {
         return err(`You are ${Math.round(distance)}m from the bar — must be within 100m`, 422)
       }
+    }
+  }
+
+  // 6a. Inside (full strength) needs the bar's door code from the QR sticker (Brian, Sep 28: option 1).
+  //     Location alone only proves you're in line. NFC tags can replace the sticker later.
+  if (body.method === 'qr_scan') {
+    const code = String(body.code ?? '').toUpperCase().replace(/[\s-]/g, '')
+    if (!code) return err("Scan the BarWars QR inside the bar (or type the code under it).", 400)
+    const { data: door } = await service.from('venues').select('checkin_code').eq('id', body.bar_id).maybeSingle()
+    if (!door || (door as any).checkin_code !== code) {
+      return err("That's not this bar's code. Scan the BarWars QR inside.", 403)
     }
   }
 

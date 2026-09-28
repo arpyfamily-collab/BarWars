@@ -26,7 +26,7 @@ const C = {
 
 const TABS = [
   { id: 'flares',      label: 'Flares' },
-  { id: 'battleplans', label: 'Battle Plans' },
+  { id: 'battleplans', label: 'War Night' },
   { id: 'bracelets',   label: 'Bracelets' },
   { id: 'specials',    label: 'War Specials' },
   { id: 'redemptions', label: 'Redemptions' },

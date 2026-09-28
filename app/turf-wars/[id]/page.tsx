@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import BottomNav from '@/components/BottomNav'
 import BattlePlanOffers from '@/components/BattlePlanOffers'
+import { scanQrCode, extractDoorCode } from '@/lib/scan-qr'
 import { Crosshair, Shield, Users, Clock, Flame, Zap, QrCode, Navigation, UserPlus, Copy, Check, Skull, AlertCircle } from 'lucide-react'
 
 interface ClaimDetail {
@@ -81,7 +82,20 @@ export default function TurfBattlePage() {
     return () => clearInterval(timer)
   }, [])
 
-  async function checkin(method: 'qr_scan' | 'geo_pulse') {
+  // "Scan QR": read the bar's door sticker (item 22 follow-up), or type the code printed under it
+  async function scanIn() {
+    setCheckinResult(null)
+    let code: string | null = null
+    try { code = extractDoorCode(await scanQrCode()) } catch {}
+    if (!code) {
+      const typed = window.prompt("Couldn't read a BarWars QR. Type the 8-character code printed under it:")
+      code = extractDoorCode(typed)
+      if (!code) { if (typed) setCheckinResult("That doesn't look like a BarWars door code."); return }
+    }
+    await checkin('qr_scan', code)
+  }
+
+  async function checkin(method: 'qr_scan' | 'geo_pulse', code?: string) {
     if (!claim) return
     setCheckingIn(true)
     setCheckinResult(null)
@@ -91,6 +105,7 @@ export default function TurfBattlePage() {
         claim_id: claim.id,
         bar_id: claim.bar?.id ?? '',
         method,
+        ...(code ? { code } : {}),
       }
 
       // Every check-in sends location: you have to be at the bar (item 22)
@@ -429,7 +444,7 @@ export default function TurfBattlePage() {
               <button
                 className="btn btn-primary"
                 style={{ flex: 1 }}
-                onClick={() => checkin('qr_scan')}
+                onClick={scanIn}
                 disabled={checkingIn}
               >
                 <QrCode size={18} />
