@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import BottomNav from '@/components/BottomNav'
 import BattlePlanOffers from '@/components/BattlePlanOffers'
 import CommsWarfarePanel from '@/components/CommsWarfarePanel'
+import AfterActionReport from '@/components/AfterActionReport'
 import { scanQrCode, extractDoorCode } from '@/lib/scan-qr'
 import { Crosshair, Shield, Users, Clock, Flame, Zap, QrCode, Navigation, UserPlus, Copy, Check, Skull, AlertCircle } from 'lucide-react'
 
@@ -383,6 +384,9 @@ export default function TurfBattlePage() {
             📡 Share Watch Link (anyone can watch)
           </button>
         )}
+
+        {/* After-Action Report once the war is decided (item 18 Phase 2) */}
+        {(claim.status === 'successful' || claim.status === 'failed') && <AfterActionReport claimId={claim.id} />}
 
         {/* Comms warfare (item 18 Phase 2): jams, Command orders, forgeries */}
         {(claim.status === 'live' || claim.status === 'contested') && <CommsWarfarePanel claimId={claim.id} />}

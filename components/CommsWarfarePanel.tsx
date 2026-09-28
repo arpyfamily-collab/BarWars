@@ -38,7 +38,7 @@ export default function CommsWarfarePanel({ claimId }: { claimId: string }) {
   if (!s) return null
   const canJam = s.jam_side && s.jams_left > 0
   const canForge = s.is_mole && s.forgeries_left > 0
-  const frozen = s.blackout_until || s.attacker_frozen_until || s.defender_frozen_until
+  const frozen = s.blackout_until || s.attacker_frozen_until || s.defender_frozen_until || s.attacker_static_until || s.defender_static_until
   if (!canJam && !s.is_leader && !canForge && !frozen) return null
   const needsBar = ORDERS.find(o => o.id === tpl)?.bar
 
@@ -65,11 +65,17 @@ export default function CommsWarfarePanel({ claimId }: { claimId: string }) {
       {!s.blackout_until && s.attacker_frozen_until && <div style={{ fontSize: 13, marginBottom: 6 }}>📵 Attacker chat jammed until {until(s.attacker_frozen_until)}.</div>}
       {!s.blackout_until && s.defender_frozen_until && <div style={{ fontSize: 13, marginBottom: 6 }}>📵 Defender chat jammed until {until(s.defender_frozen_until)}.</div>}
 
+      {!s.blackout_until && s.attacker_static_until && <div style={{ fontSize: 13, marginBottom: 6 }}>▒ Static on the attacker chat until {until(s.attacker_static_until)}.</div>}
+      {!s.blackout_until && s.defender_static_until && <div style={{ fontSize: 13, marginBottom: 6 }}>▒ Static on the defender chat until {until(s.defender_static_until)}.</div>}
       {s.jam_side && (
         <div style={{ marginTop: 6 }}>
-          <button className="btn" style={{ fontSize: 12 }} disabled={busy || !canJam} onClick={() => act({ action: 'jam' })}>
-            📵 Jam the {s.jam_side === 'attacker' ? 'defenders' : 'attackers'} ({s.jams_left} left, {s.jam_side === 'attacker' ? 5 : 10} min)
-          </button>
+          <div style={{ fontSize: 12, color: 'var(--bw-muted)', marginBottom: 6 }}>
+            Hit the {s.jam_side === 'attacker' ? 'defenders' : 'attackers'} for {s.jam_side === 'attacker' ? 5 : 10} min: a jam silences their chat, static garbles half their words. {s.jams_left} left for your side (jam or static).
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn" style={{ fontSize: 12 }} disabled={busy || !canJam} onClick={() => act({ action: 'jam' })}>📵 Jam</button>
+            <button className="btn" style={{ fontSize: 12 }} disabled={busy || !canJam} onClick={() => act({ action: 'static' })}>▒ Static</button>
+          </div>
         </div>
       )}
       {s.is_leader && (

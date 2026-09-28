@@ -1,6 +1,7 @@
 'use client'
 
 import LoyaltySweepPanel from '@/components/LoyaltySweepPanel'
+import GhostWiretapPanel from '@/components/GhostWiretapPanel'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
@@ -340,6 +341,9 @@ export default function SpyNetworkPage() {
 
         {/* Loyalty sweeps (item 24): leaders only; renders nothing for everyone else */}
         <LoyaltySweepPanel />
+
+        {/* Ghost Wiretap (item 18 Phase 2): Ghosts only; renders nothing for everyone else */}
+        <GhostWiretapPanel />
 
         {/* Leadership alerts: private to the org's leaders, never name the member */}
         {alerts.length > 0 && (

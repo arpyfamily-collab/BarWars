@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 /**
  * Comms Warfare for a war (Testing To-Do item 18 Phase 2).
  * GET → what this player can do (jams, orders, forgeries, decrypts) and what's frozen
- * POST { action: 'jam' }                                  → a side's spies or hired mercenaries jam the enemy chat
+ * POST { action: 'jam' | 'static' }                       → a side's spies or hired mercenaries jam or garble the enemy chat (one shared budget)
  * POST { action: 'order' | 'forge', template, bar_id? }   → leader's real Command notice / mole's forged one
  * Templates: regroup, fall_back, push (need a bar on the Square), hold. No free text, no rides, no leaving.
  */
@@ -45,10 +45,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   let body: any
   try { body = await req.json() } catch { return err('Invalid JSON') }
   const s = createServiceClient()
-  if (body.action === 'jam') {
-    const { data, error: e } = await s.rpc('signal_jam', { p_user: userId, p_claim: params.id })
+  // Jam and Static share one budget per side (Brian, Sep 28)
+  if (body.action === 'jam' || body.action === 'static') {
+    const { data, error: e } = await s.rpc('signal_jam', { p_user: userId, p_claim: params.id, p_kind: body.action })
     if (e) return mapError(e.message)
-    return ok({ ...(data as any), message: `Jammed the ${(data as any).target}s for ${(data as any).minutes} minutes.` })
+    const d: any = data
+    return ok({ ...d, message: body.action === 'jam' ? `Jammed the ${d.target}s for ${d.minutes} minutes.` : `Static on the ${d.target}s for ${d.minutes} minutes: half their words come through garbled.` })
   }
   if (body.action === 'order' || body.action === 'forge') {
     const fn = body.action === 'order' ? 'command_order' : 'forge_order'
