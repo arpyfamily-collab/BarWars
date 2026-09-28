@@ -7,6 +7,7 @@ function ghostError(raw: string | null | undefined): { message: string; status: 
   const m = raw ?? ''
   const codes: Record<string, [string, number]> = {
     NOT_A_GHOST: ['Become a Ghost first.', 404],
+    GHOST_SUSPENDED: ['Your Ghost is suspended: staff ruled 2 of your reports fake.', 403],
     WAR_NOT_ACTIVE: ['That war is over or not declared yet.', 409],
     OWN_WAR: ["Ghosts can't report on a war their own faction is part of.", 403],
     BAD_CONTENT: ['Reports are 10 to 1,000 characters.', 400],
@@ -104,12 +105,12 @@ export async function GET(req: NextRequest) {
     }
     if (bought) {
       purchased.push({ ...teaser, observation: r.observation, orgs_present: r.orgs_present, headcount_estimate: r.headcount_estimate,
-                       paid: bought.price, exclusive: bought.exclusive, rating: bought.rating, flagged: !!bought.flag_status, i_bought: bought.buyer_user_id === userId })
+                       paid: bought.price, exclusive: bought.exclusive, rating: bought.rating, flagged: !!bought.flag_status, refunded: bought.flag_status === 'refunded', i_bought: bought.buyer_user_id === userId })
       continue
     }
     const exclusiveOpen = r.status === 'held' && new Date(r.release_at) > new Date()
     if (exclusiveOpen && warSides.length) market.push({ ...teaser, mode: 'exclusive', price: r.price, closes_at: r.release_at, sides: warSides })
-    else if (!exclusiveOpen && r.status !== 'sold' && canBuyOpen) market.push({ ...teaser, mode: 'open', price: r.second_price, sides: mySides.slice(0, 1) })
+    else if (!exclusiveOpen && r.status !== 'sold' && r.status !== 'fake' && canBuyOpen) market.push({ ...teaser, mode: 'open', price: r.second_price, sides: mySides.slice(0, 1) })
   }
 
   // The Ghost's own view

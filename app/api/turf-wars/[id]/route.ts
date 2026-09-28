@@ -40,7 +40,10 @@ export async function GET(
     .eq('claim_id', params.id)
     .order('verified_at', { ascending: false })
 
-  return ok({ ...claim, checkins: checkins ?? [] })
+  // Who the viewer is in this war: member, hired Hessian or mercenary, and for which side (item 25)
+  const { data: myRole } = await service.rpc('war_role', { p_user: userId, p_claim: params.id })
+
+  return ok({ ...claim, checkins: checkins ?? [], my_role: myRole ?? null })
 }
 
 /**

@@ -33,6 +33,9 @@ interface ClaimDetail {
   attacking_org: { name: string; org_type: string }
   defending_org: { name: string; org_type: string } | null
   bar: { id: string; name: string; barwars_line?: boolean }
+  // Who you are in this war (item 25): member, hired Hessian or mercenary, and for which side
+  my_role?: { kind: 'member' | 'hessian' | 'mercenary' | 'mercenary_support' | null; side?: 'attacker' | 'defender';
+              org_name?: string; weight?: number; can_check_in?: boolean; checked_in?: boolean; in_line?: boolean } | null
 }
 
 interface MyMembership {
@@ -430,8 +433,18 @@ export default function TurfBattlePage() {
           </div>
         )}
 
-        {/* Check-in actions */}
-        {isLive && isOpen && (
+        {/* Your role in this war (item 25): hired guns used to see nothing and a Rally button that failed */}
+        {claim.my_role?.kind && (
+          <div className="card" style={{ borderLeft: `3px solid ${claim.my_role.side === 'attacker' ? '#E03131' : '#378ADD'}`, fontSize: 13 }}>
+            {claim.my_role.kind === 'member' ? <>You&apos;re fighting for <b>{claim.my_role.org_name}</b> ({claim.my_role.side}).</>
+              : claim.my_role.kind === 'mercenary_support' ? <>You&apos;re hired by <b>{claim.my_role.org_name}</b> for a support job. Support roles don&apos;t check in or count toward headcount.</>
+              : <>You&apos;re a hired {claim.my_role.kind === 'hessian' ? 'Hessian' : 'mercenary'} fighting for <b>{claim.my_role.org_name}</b> ({claim.my_role.side}). You count {claim.my_role.weight}× toward their headcount; hired guns don&apos;t count toward turnout.</>}
+            {claim.my_role.checked_in && <div style={{ marginTop: 4, color: 'var(--bw-green)' }}>{claim.my_role.in_line ? 'Checked in from the line (half strength). Scan in for full.' : 'Checked in at full strength.'}</div>}
+          </div>
+        )}
+
+        {/* Check-in actions: only for people in this war who can check in */}
+        {isLive && isOpen && claim.my_role?.can_check_in && (
           <div className="card">
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--bw-muted)', marginBottom: 14 }}>
               Check In
@@ -469,7 +482,7 @@ export default function TurfBattlePage() {
         )}
 
         {/* Rally button */}
-        {isLive && claim.defending_org && (
+        {isLive && claim.defending_org && claim.my_role?.kind === 'member' && (
           <div className="card">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
               <Zap size={16} style={{ color: 'var(--bw-gold)' }} />
