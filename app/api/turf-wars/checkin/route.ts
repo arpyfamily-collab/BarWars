@@ -258,6 +258,9 @@ export async function POST(req: NextRequest) {
     if (insertError.code === '23505') {
       return err('You have already checked in for this claim', 409)
     }
+    if ((insertError.message ?? '').includes('EDU_REQUIRED')) {
+      return err('Verify your Ole Miss email (Account → Verification) to check in to wars.', 403)
+    }
     return err('Check-in failed. Please try again.', 500)
   }
 

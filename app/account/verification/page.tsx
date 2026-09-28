@@ -1,5 +1,6 @@
 'use client'
 
+import { createClient } from '@/lib/supabase-client'
 import { useState, useEffect } from 'react'
 import BottomNav from '@/components/BottomNav'
 import { Shield, Phone, Mail, AlertCircle, Check, X, Smartphone, BadgeCheck, Lock, Eye } from 'lucide-react'
@@ -96,18 +97,17 @@ export default function VerificationPage() {
     finally { setActionLoading(null) }
   }
 
+  // .edu verification (item 11): switch the login email to the university address; Supabase emails
+  // a confirmation link there. Verified = the confirmed login email is @olemiss.edu.
   async function sendEduVerification() {
-    if (!eduInput || !eduInput.endsWith('.edu')) { setError('Enter a valid .edu email address'); return }
+    const email = eduInput.trim().toLowerCase()
+    if (!/@([a-z0-9-]+\.)*olemiss\.edu$/.test(email)) { setError('Enter your Ole Miss email (@go.olemiss.edu or @olemiss.edu)'); return }
     setActionLoading('edu')
     setError(null)
     try {
-      const res = await fetch('/api/verify/edu', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ edu_email: eduInput }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setResult(data.message)
+      const { error: e } = await createClient().auth.updateUser({ email }, { emailRedirectTo: `${window.location.origin}/account/verification` })
+      if (e) throw new Error(e.message)
+      setResult(`Check ${email} for a confirmation link. Your login email switches to it once you confirm (you may also need to confirm from your current inbox).`)
       setEduInput('')
       loadStatus()
     } catch (e: any) { setError(e.message) }
@@ -279,7 +279,7 @@ export default function VerificationPage() {
             <span style={{ fontSize: 13, fontWeight: 600 }}>Layer 3: University Email (.edu)</span>
           </div>
           <div style={{ fontSize: 12, color: 'var(--bw-muted)', marginBottom: 12, lineHeight: 1.5 }}>
-            Required for high-stakes roles (Greek members, Hessians, Mercenaries). A student can have multiple emails but typically only one .edu address. Ghosts and Allies don&apos;t need this.
+            Your Ole Miss email (@go.olemiss.edu) becomes your login. It&apos;s needed for Greek orgs, Hessian companies, mercenary work, Ghosts, spies and war check-ins. One university email, one account.
           </div>
           {v?.edu_verified ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--bw-green)' }}>
@@ -288,12 +288,12 @@ export default function VerificationPage() {
           ) : (
             <div>
               <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 12, fontWeight: 600 }}>Your .edu email</label>
+                <label style={{ fontSize: 12, fontWeight: 600 }}>Your Ole Miss email</label>
                 <input
                   className="input"
                   value={eduInput}
                   onChange={e => setEduInput(e.target.value)}
-                  placeholder="you@university.edu"
+                  placeholder="you@go.olemiss.edu"
                   style={{ marginTop: 6 }}
                 />
               </div>

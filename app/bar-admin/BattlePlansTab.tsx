@@ -7,6 +7,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import DoorQrPanel from './DoorQrPanel'
+import StaffSpiesPanel from './StaffSpiesPanel'
 
 const C = { panel: '#111114', border: 'rgba(255,255,255,0.06)', text: '#F5F5F5', dim: '#9CA3AF', gold: '#C9A84C', green: '#22C55E', red: '#E03131' }
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -63,6 +64,7 @@ export default function BattlePlansTab({ venueId }: { venueId: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <DoorQrPanel venueId={venueId} />
+      <StaffSpiesPanel venueId={venueId} />
       {d && (
         <Panel accent={d.fired_tonight ? C.green : d.armed_tonight ? C.gold : undefined}>
           <div style={{ fontSize: 14 }}>

@@ -5,6 +5,7 @@ import TestersTool from './TestersTool'
 import ShoutsTool from './ShoutsTool'
 import SponsoredSkinsTool from './SponsoredSkinsTool'
 import GhostFlagsTool from './GhostFlagsTool'
+import EduGateTool from './EduGateTool'
 
 export const dynamic = 'force-dynamic'
 
@@ -236,6 +237,7 @@ export default async function OperatorOverview() {
       <ShoutsTool />
       <SponsoredSkinsTool />
       <GhostFlagsTool />
+      <EduGateTool />
     </div>
   )
 }
