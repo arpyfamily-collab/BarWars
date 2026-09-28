@@ -23,6 +23,8 @@ interface BarTurf {
 
 interface RadarUser {
   user_id: string
+  demo?: boolean
+  is_me?: boolean
   display_name: string
   lat: number
   lng: number
@@ -424,7 +426,7 @@ export default function TurfMap() {
   // Reinforcements alert: 5+ users with same squad skin rallying
   useEffect(() => {
     if (!radarVisible || radarUsers.length === 0) return
-    const rallying = radarUsers.filter(u => u.status === 'rallying')
+    const rallying = radarUsers.filter(u => u.status === 'rallying' && !u.demo)
     if (rallying.length < 5) return
 
     const bySkin: Record<string, RadarUser[]> = {}
@@ -650,7 +652,7 @@ export default function TurfMap() {
             <span style={{ color: '#7B2CBF', display: 'flex', alignItems: 'center', gap: 4, fontSize: 10 }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#7B2CBF', display: 'inline-block',
                 animation: 'radar-dot-pulse 1.2s ease-in-out infinite' }} />
-              {radarUsers.length} LIVE
+              {radarUsers.every(u => u.demo) ? 'DEMO' : `${radarUsers.length} LIVE`}
             </span>
           )}
           {bars.some(b => b.threat_level === 'active_attack' || b.threat_level === 'shots_fired') && (

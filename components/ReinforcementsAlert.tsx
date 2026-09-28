@@ -25,7 +25,7 @@ export default function ReinforcementsAlert() {
       const users = await res.json()
       if (!Array.isArray(users)) return
 
-      const rallying = users.filter((u: any) => u.status === 'rallying')
+      const rallying = users.filter((u: any) => u.status === 'rallying' && !u.demo)
       if (rallying.length < 5) return
 
       const bySkin: Record<string, number> = {}

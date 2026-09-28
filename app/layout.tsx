@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { PushNotificationInit } from '@/components/PushNotificationInit'
+import { LocationReporter } from '@/components/LocationReporter'
 
 export const metadata: Metadata = {
   title: 'BarWars',
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <PushNotificationInit />
+        <LocationReporter />
         {children}
       </body>
     </html>

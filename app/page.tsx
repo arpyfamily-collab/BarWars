@@ -4,6 +4,7 @@ import BottomNav from '@/components/BottomNav'
 import TurfMap from '@/components/TurfMap'
 import ActiveFlare from '@/components/ActiveFlare'
 import ReinforcementsAlert from '@/components/ReinforcementsAlert'
+import LocationToggle from '@/components/LocationToggle'
 import BattleFeed from '@/components/BattleFeed'
 import ContextFAB from '@/components/ContextFAB'
 import CommsFAB from '@/components/CommsFAB'
@@ -78,6 +79,9 @@ export default async function HomePage() {
 
         {/* ── War Map ─────────────────────────────────────────── */}
         <TurfMap />
+        <div style={{ marginTop: 12 }}>
+          <LocationToggle />
+        </div>
 
         {/* ── Reinforcements Alert ────────────────────────────── */}
         <div style={{ marginTop: 12 }}>

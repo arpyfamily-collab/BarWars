@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import PushNotificationPrompt from '@/components/PushNotificationPrompt'
 import BottomNav from '@/components/BottomNav'
 import DeleteAccount from '@/components/DeleteAccount'
+import LocationToggle from '@/components/LocationToggle'
 import BlockedPlayers from '@/components/BlockedPlayers'
 import { Shield, ChevronRight, Zap, Sparkles } from 'lucide-react'
 import YourFactions from '@/components/YourFactions'
@@ -125,6 +126,8 @@ export default async function AccountPage() {
         </form>
 
         {/* Blocked players */}
+        <LocationToggle />
+
         <BlockedPlayers userId={user.id} />
 
         {/* Legal links */}
