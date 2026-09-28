@@ -4,6 +4,7 @@ import { createClient as createBrowserSupabase } from '@/lib/supabase-client'
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import BottomNav from '@/components/BottomNav'
+import BattlePlanOffers from '@/components/BattlePlanOffers'
 import { Crosshair, Shield, Users, Clock, Flame, Zap, QrCode, Navigation, UserPlus, Copy, Check, Skull, AlertCircle } from 'lucide-react'
 
 interface ClaimDetail {
@@ -362,6 +363,9 @@ export default function TurfBattlePage() {
             📡 Share Watch Link (anyone can watch)
           </button>
         )}
+
+        {/* Battle Plan offers bars fired for this war (item 19) */}
+        <BattlePlanOffers claimId={claim.id} />
 
         {/* Combatants */}
         <div style={{ display: 'flex', gap: 8 }}>

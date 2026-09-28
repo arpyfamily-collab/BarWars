@@ -1,5 +1,6 @@
 'use client'
 
+import BattlePlansTab from './BattlePlansTab'
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase-client'
 
@@ -25,6 +26,7 @@ const C = {
 
 const TABS = [
   { id: 'flares',      label: 'Flares' },
+  { id: 'battleplans', label: 'Battle Plans' },
   { id: 'bracelets',   label: 'Bracelets' },
   { id: 'specials',    label: 'War Specials' },
   { id: 'redemptions', label: 'Redemptions' },
@@ -171,6 +173,7 @@ export default function BarCommandCenter() {
 
           <div style={{ marginTop: 24 }}>
             {tab === 'flares'      && <FlaresTab venueId={venueId} userId={userId!} />}
+            {tab === 'battleplans' && <BattlePlansTab venueId={venueId} />}
             {tab === 'bracelets'   && <BraceletsTab venueId={venueId} userId={userId!} />}
             {tab === 'specials'    && <WarSpecialsTab venueId={venueId} userId={userId!} />}
             {tab === 'redemptions' && <RedemptionsTab venueId={venueId} />}
@@ -261,18 +264,12 @@ function FlaresTab({ venueId, userId }: { venueId: string; userId: string }) {
     }
     setFiring(true)
     try {
-      const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/flare-fire`
-      const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch(url, {
+      // Server checks you run this bar (the old edge function trusted whatever was sent)
+      const res = await fetch('/api/bar-admin/flare', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-          Authorization: `Bearer ${session?.access_token ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           venue_id: venueId,
-          fired_by: userId,
           offer_text: offerText.trim(),
           discount_desc: discountDesc.trim(),
           duration_min: duration,
