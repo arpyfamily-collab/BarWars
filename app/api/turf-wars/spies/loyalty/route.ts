@@ -39,5 +39,5 @@ export async function POST(req: NextRequest) {
     if (e.message.includes('NO_TARGETS')) return err('No members available to test right now.', 409)
     return err('Could not order the sweep.', 500)
   }
-  return ok({ ...(data as any), message: `Loyalty sweep sent to ${(data as any).targets} members. Names are never shown.` }, 201)
+  return ok({ ...(data as any), message: `Loyalty sweep sent to ${(data as any).targets} member${(data as any).targets === 1 ? '' : 's'}. Names are never shown.` }, 201)
 }
