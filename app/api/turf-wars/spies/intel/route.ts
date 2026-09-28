@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   const { userId, error: authError } = await requireAuth()
   if (authError) return authError
 
-  let body: { intel_type: string; content: string; claim_id?: string }
+  let body: { intel_type: string; content: string; claim_id?: string; asset_id?: string }
   try { body = await req.json() }
   catch { return err('Invalid JSON') }
 
@@ -66,17 +66,28 @@ export async function POST(req: NextRequest) {
 
   const service = createServiceClient()
 
-  // Get the caller's active spy asset
-  const { data: asset, error: assetErr } = await service
+  // The caller's active spy records. A double agent has one per handler and picks which
+  // handler gets this report (maybeSingle used to error on two rows, so double agents couldn't file).
+  const { data: assetRows, error: assetErr } = await service
     .from('spy_assets')
     .select('id, is_active, burned')
     .eq('asset_user_id', userId!)
     .eq('is_active', true)
-    .maybeSingle()
 
-  if (assetErr) return err(assetErr.message, 500)
-  if (!asset) return err('You are not an active spy asset', 403)
-  if ((asset as any).burned) return err('You have been burned. Your spy status is public.', 403)
+  if (assetErr) return err('Could not load your spy status. Try again.', 500)
+  const active = (assetRows as any[]) ?? []
+  if (active.length === 0) return err('You are not an active spy asset', 403)
+
+  let asset: any
+  if (body.asset_id) {
+    asset = active.find(a => a.id === body.asset_id)
+    if (!asset) return err('That handler is not one of yours', 403)
+  } else if (active.length === 1) {
+    asset = active[0]
+  } else {
+    return err('You report to more than one handler. Pick which one gets this report.', 422)
+  }
+  if (asset.burned) return err('You have been burned. Your spy status is public.', 403)
 
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
 

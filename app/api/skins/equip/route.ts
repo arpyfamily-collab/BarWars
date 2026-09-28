@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase'
+import { createServerSupabaseClient, createServiceClient } from '@/lib/supabase'
 
 export async function POST(req: NextRequest) {
   const supabase = createServerSupabaseClient()
@@ -8,6 +8,8 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  // Loadout and equipped flags are written by the server only, after the ownership checks
+  const service = createServiceClient()
 
   const body = await req.json()
   const { skin_id, layer } = body
@@ -72,7 +74,7 @@ export async function POST(req: NextRequest) {
 
   if (loadout) {
     // Update existing
-    const { error } = await supabase
+    const { error } = await service
       .from('user_skin_loadout')
       .update(updateData)
       .eq('user_id', user.id)
@@ -88,7 +90,7 @@ export async function POST(req: NextRequest) {
       status_set_at: new Date().toISOString(),
     }
     insertData[columnName] = skin_id
-    const { error } = await supabase
+    const { error } = await service
       .from('user_skin_loadout')
       .insert(insertData)
 
@@ -99,13 +101,13 @@ export async function POST(req: NextRequest) {
 
   // Mark the skin as equipped in user_skins (for the equipped boolean)
   // First unequip all other skins in the same category
-  await supabase
+  await service
     .from('user_skins')
     .update({ equipped: false })
     .eq('user_id', user.id)
     .eq('equipped', true)
 
-  await supabase
+  await service
     .from('user_skins')
     .update({ equipped: true })
     .eq('user_id', user.id)
@@ -121,6 +123,8 @@ export async function DELETE(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  // Loadout and equipped flags are written by the server only, after the ownership checks
+  const service = createServiceClient()
 
   const { searchParams } = new URL(req.url)
   const layer = searchParams.get('layer')
@@ -145,7 +149,7 @@ export async function DELETE(req: NextRequest) {
   }
   updateData[columnName] = null
 
-  const { error } = await supabase
+  const { error } = await service
     .from('user_skin_loadout')
     .update(updateData)
     .eq('user_id', user.id)

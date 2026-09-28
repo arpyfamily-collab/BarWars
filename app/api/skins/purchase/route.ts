@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase'
+import { createServerSupabaseClient, createServiceClient } from '@/lib/supabase'
 
 export async function POST(req: NextRequest) {
   const supabase = createServerSupabaseClient()
@@ -83,7 +83,9 @@ export async function POST(req: NextRequest) {
       ? new Date(Date.now() + skin.rental_hours * 60 * 60 * 1000).toISOString()
       : null
 
-    const { data: userSkin, error: insertError } = await supabase
+    // Players can't write user_skins directly; the server grants after the checks above
+    const service = createServiceClient()
+    const { data: userSkin, error: insertError } = await service
       .from('user_skins')
       .insert({
         user_id: user.id,
@@ -96,37 +98,14 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 })
+      return NextResponse.json({ error: 'Could not add this skin. Try again.' }, { status: 500 })
     }
 
+    await service.rpc('increment_skin_sold_count', { p_skin_id: skin.id })
     return NextResponse.json({ success: true, user_skin: userSkin }, { status: 201 })
   }
 
-  // For paid skins — return payment info (Stripe integration would go here)
-  // For now, we simulate a "purchase" by recording it with the amount
-  // In production this would create a Stripe checkout session and only insert after payment confirmation
-  const rentalExpiresAt = skin.rental_only && skin.rental_hours
-    ? new Date(Date.now() + skin.rental_hours * 60 * 60 * 1000).toISOString()
-    : null
-
-  const { data: userSkin, error: insertError } = await supabase
-    .from('user_skins')
-    .insert({
-      user_id: user.id,
-      skin_id: skin.id,
-      ownership_type: skin.rental_only ? 'rented' : 'purchased',
-      rental_expires_at: rentalExpiresAt,
-      amount_paid: skin.price_cents,
-    })
-    .select('id, skin_id, ownership_type, rental_expires_at, equipped')
-    .single()
-
-  if (insertError) {
-    return NextResponse.json({ error: insertError.message }, { status: 500 })
-  }
-
-  // Increment sold_count on the skin
-  await supabase.rpc('increment_skin_sold_count', { p_skin_id: skin.id }).then(() => {})
-
-  return NextResponse.json({ success: true, user_skin: userSkin }, { status: 201 })
+  // Paid skins: sold only through Apple in-app purchase (App Store Guideline 3.1.1), which isn't
+  // built yet. This used to "simulate" the purchase and hand the skin over for free.
+  return NextResponse.json({ error: 'Paid skins are coming soon through the App Store.' }, { status: 402 })
 }

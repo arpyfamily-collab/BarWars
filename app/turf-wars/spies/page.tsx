@@ -89,6 +89,8 @@ export default function SpyNetworkPage() {
   // Intel form
   const [intelType, setIntelType] = useState('')
   const [intelContent, setIntelContent] = useState('')
+  const [intelAsset, setIntelAsset] = useState('')
+  const [alerts, setAlerts] = useState<{ id: string; kind: string; headline: string; body: string | null; created_at: string }[]>([])
 
   // Ghost report form
   const [ghostObservation, setGhostObservation] = useState('')
@@ -110,6 +112,7 @@ export default function SpyNetworkPage() {
         fetch('/api/turf-wars/spies/ghost'),
         fetch('/api/turf-wars/spies/intel'),
       ])
+      fetch('/api/turf-wars/spies/alerts').then(r => r.json()).then(d => { if (Array.isArray(d)) setAlerts(d) }).catch(() => {})
       const recData = await recRes.json()
       const assetsData = await assetsRes.json()
       const cultData = await cultRes.json()
@@ -185,7 +188,7 @@ export default function SpyNetworkPage() {
       const res = await fetch('/api/turf-wars/spies/intel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ intel_type: intelType, content: intelContent }),
+        body: JSON.stringify({ intel_type: intelType, content: intelContent, asset_id: intelAsset || undefined }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -310,6 +313,24 @@ export default function SpyNetworkPage() {
           </div>
         )}
 
+        {/* Leadership alerts: private to the org's leaders, never name the member */}
+        {alerts.length > 0 && (
+          <div className="card" style={{ borderLeft: '3px solid var(--bw-red)' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--bw-muted)', marginBottom: 8 }}>
+              Leadership alerts
+            </div>
+            <div className="stack stack-sm">
+              {alerts.map(a => (
+                <div key={a.id} style={{ fontSize: 12, lineHeight: 1.5 }}>
+                  <div style={{ fontWeight: 700, color: a.kind === 'loyalty_confirmed' ? 'var(--bw-green)' : 'var(--bw-red)' }}>{a.headline}</div>
+                  {a.body && <div style={{ color: 'var(--bw-muted)' }}>{a.body}</div>}
+                  <div style={{ fontSize: 11, color: 'var(--bw-muted)' }}>{new Date(a.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Pending approach alert */}
         {hasPendingApproach && (
           <div className="card" style={{ borderLeft: '3px solid var(--bw-gold)', animation: 'pulse 2s infinite' }}>
@@ -418,7 +439,7 @@ export default function SpyNetworkPage() {
                   {assets.myAssets.filter(a => a.is_active).map(a => (
                     <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: 'var(--bw-muted)' }}>Type: <b style={{ color: 'var(--bw-text)' }}>{a.spy_type.replace('_', ' ')}</b></span>
-                      <span style={{ color: 'var(--bw-muted)' }}>Handler: <b style={{ color: 'var(--bw-text)' }}>{a.handler_type}</b></span>
+                      <span style={{ color: 'var(--bw-muted)' }}>Handler: <b style={{ color: 'var(--bw-text)' }}>{a.handler_type === 'hessian_company' ? 'Hessian company' : 'Greek org'}</b></span>
                     </div>
                   ))}
                 </div>
@@ -472,6 +493,20 @@ export default function SpyNetworkPage() {
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--bw-muted)', marginBottom: 12 }}>
                   Submit Intel Report
                 </div>
+                {assets.myAssets.filter(a => a.is_active && !a.burned).length > 1 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 12, fontWeight: 600 }}>Send to</label>
+                    <select className="input" value={intelAsset} onChange={e => setIntelAsset(e.target.value)} style={{ marginTop: 6 }}>
+                      <option value="">Pick a handler…</option>
+                      {assets.myAssets.filter(a => a.is_active && !a.burned).map(a => (
+                        <option key={a.id} value={a.id}>
+                          {a.handler_type === 'hessian_company' ? 'Hessian company' : 'Greek org'} handler, recruited {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </option>
+                      ))}
+                    </select>
+                    <div style={{ fontSize: 11, color: 'var(--bw-muted)', marginTop: 4 }}>You&apos;re a double agent. Each report goes to one handler.</div>
+                  </div>
+                )}
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ fontSize: 12, fontWeight: 600 }}>Intel Type</label>
                   <select className="input" value={intelType} onChange={e => setIntelType(e.target.value)} style={{ marginTop: 6 }}>

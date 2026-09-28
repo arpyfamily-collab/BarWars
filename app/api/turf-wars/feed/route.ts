@@ -23,6 +23,7 @@ export async function GET() {
         defending_org:greek_orgs!turf_claims_defending_org_id_fkey(name)
       )
     `)
+    .eq('visible_to', 'public')   // 'orgs_only' events never go on the public feed
     .order('created_at', { ascending: false })
     .limit(25)
 

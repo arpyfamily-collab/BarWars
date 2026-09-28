@@ -91,14 +91,12 @@ export async function POST(req: NextRequest) {
           .maybeSingle()
 
         if (membership) {
-          // We can't identify the specific member, but we log the alert as a turf event
-          await service.from('turf_events').insert({
-            event_type: 'war_declared',
+          // Private to the org's leaders; never names the member (was a public war-feed event that never saved)
+          await service.from('leadership_alerts').insert({
             org_id: (membership as any).org_id,
-            headline: 'LOYALTY ALERT — A member of your organization accepted an approach',
-            body: 'Identity not disclosed. Consider activating a Mole Hunt if you suspect infiltration.',
-            deep_link: '/turf-wars/spies',
-            visible_to: 'orgs_only',
+            kind: 'loyalty_susceptible',
+            headline: 'Loyalty alert: a member of your org accepted a spy approach',
+            body: 'Identity not disclosed. Consider a Mole Hunt if you suspect infiltration.',
           })
         }
 
@@ -164,13 +162,11 @@ export async function POST(req: NextRequest) {
           .maybeSingle()
 
         if (membership) {
-          await service.from('turf_events').insert({
-            event_type: 'war_declared',
+          await service.from('leadership_alerts').insert({
             org_id: (membership as any).org_id,
-            headline: 'LOYALTY CONFIRMED — A member reported a spy approach',
-            body: 'A member of your organization demonstrated high loyalty by reporting a recruitment attempt. Identity not disclosed.',
-            deep_link: '/turf-wars/spies',
-            visible_to: 'orgs_only',
+            kind: 'loyalty_confirmed',
+            headline: 'Loyalty confirmed: a member reported a spy approach',
+            body: 'A member of your org showed high loyalty by reporting a recruitment attempt. Identity not disclosed.',
           })
         }
 
