@@ -23,11 +23,14 @@ interface ChannelInfo {
   channel_type: string
   is_active: boolean
   member_count: number
+  is_member: boolean
 }
 
 const TYPE_COLORS: Record<string, string> = {
   war_room: 'var(--bw-violet)',
   hessian: 'var(--bw-cyan)',
+  regiment: 'var(--bw-cyan)',
+  war_side: 'var(--bw-flare)',
   battlefield: 'var(--bw-red)',
   direct: 'var(--bw-muted)',
 }
@@ -35,6 +38,8 @@ const TYPE_COLORS: Record<string, string> = {
 const TYPE_LABELS: Record<string, string> = {
   war_room: 'War Room',
   hessian: 'Hessian',
+  regiment: 'Regiment',
+  war_side: 'War Chat',
   battlefield: 'Battlefield',
   direct: 'Direct',
 }
@@ -126,32 +131,28 @@ export default function ChatPage() {
       .select('*', { count: 'exact', head: true })
       .eq('channel_id', channelId)
 
+    // Posting: members of a live chat only (the database enforces this too)
+    const { data: { user } } = await supabase.auth.getUser()
+    let isMember = false
+    if (user) {
+      const { data: me } = await supabase
+        .from('channel_members')
+        .select('id')
+        .eq('channel_id', channelId)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      isMember = !!me
+    }
+
     setChannel({
       id: data.id,
       name: data.name,
       channel_type: data.channel_type,
       is_active: data.is_active,
       member_count: count ?? 0,
+      is_member: isMember,
     })
   }, [supabase, channelId])
-
-  const autoJoinBattlefield = useCallback(async (userId: string) => {
-    if (!channel) return
-    if (channel.channel_type !== 'battlefield') return
-
-    const { data: existing } = await supabase
-      .from('channel_members')
-      .select('id')
-      .eq('channel_id', channelId)
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    if (!existing) {
-      await supabase
-        .from('channel_members')
-        .insert({ channel_id: channelId, user_id: userId })
-    }
-  }, [supabase, channelId, channel])
 
   const updateReadStatus = useCallback(async (userId: string) => {
     const { data: existing } = await supabase
@@ -181,7 +182,6 @@ export default function ChatPage() {
 
       await fetchChannelInfo()
       await fetchMessages()
-      await autoJoinBattlefield(user.id)
       await updateReadStatus(user.id)
     })()
   }, [])
@@ -242,8 +242,8 @@ export default function ChatPage() {
       setIntelMode(false)
       await updateReadStatus(currentUserId)
     } else {
-      if (error.code === '42501' && channel?.channel_type === 'direct') {
-        setToast("You can't message this player.")
+      if (error.code === '42501') {
+        setToast(channel?.is_active ? 'Only members of this chat can post here.' : 'This chat is closed. The war is over.')
       }
     }
     setSending(false)
@@ -468,7 +468,18 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Input Bar */}
+      {/* Read-only: spectating a Battlefield, or a finished war's record */}
+      {channel && !(channel.is_active && channel.is_member) ? (
+        <div style={{
+          flexShrink: 0, padding: '14px 16px',
+          borderTop: '1px solid #252D3D', background: '#13171F',
+          fontSize: 12, color: 'var(--bw-muted)', textAlign: 'center',
+        }}>
+          {!channel.is_active
+            ? 'This war is over. The chat is a read-only war record.'
+            : 'You are spectating. Only the two sides and their hired hands can post here.'}
+        </div>
+      ) : (
       <div style={{
         flexShrink: 0, padding: '10px 12px',
         borderTop: '1px solid #252D3D', background: '#13171F',
@@ -532,6 +543,7 @@ export default function ChatPage() {
           <Send size={16} />
         </button>
       </div>
+      )}
 
       {/* Message Options Menu */}
       {menuMessage && (

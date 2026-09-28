@@ -21,21 +21,11 @@ interface ChannelWithMeta {
   is_live: boolean
 }
 
-interface MockChannel {
-  id: string
-  name: string
-  channel_type: string
-  member_count: number
-  last_message_content: string
-  last_message_at: string
-  unread_count: number
-  is_live: boolean
-  is_mock: true
-}
-
 const TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   war_room:   { label: 'War Room',   color: 'var(--bw-violet)', icon: <Swords size={16} /> },
   hessian:    { label: 'Hessian',    color: 'var(--bw-cyan)',   icon: <Users size={16} /> },
+  regiment:   { label: 'Regiment',   color: 'var(--bw-cyan)',   icon: <Users size={16} /> },
+  war_side:   { label: 'War Chat',   color: 'var(--bw-flare)',  icon: <Megaphone size={16} /> },
   battlefield:{ label: 'Battlefield',color: 'var(--bw-red)',    icon: <Radio size={16} /> },
   direct:     { label: 'Direct',     color: 'var(--bw-muted)',  icon: <MessageSquare size={16} /> },
 }
@@ -57,12 +47,11 @@ function truncate(text: string, max: number): string {
 
 export default function CommsPage() {
   const router = useRouter()
-  const [warRooms, setWarRooms] = useState<ChannelWithMeta[]>([])
-  const [hessians, setHessians] = useState<ChannelWithMeta[]>([])
+  const [teamChats, setTeamChats] = useState<ChannelWithMeta[]>([])
+  const [warChats, setWarChats] = useState<ChannelWithMeta[]>([])
   const [battlefields, setBattlefields] = useState<ChannelWithMeta[]>([])
-  const [directs, setDirects] = useState<ChannelWithMeta[]>([])
+  const [records, setRecords] = useState<ChannelWithMeta[]>([])
   const [loading, setLoading] = useState(true)
-  const [showMock, setShowMock] = useState(false)
   const supabase = createClient()
 
   const fetchChannels = useCallback(async () => {
@@ -148,40 +137,31 @@ export default function CommsPage() {
         last_message_content: lastMsg?.content ?? null,
         last_message_at: lastMsg?.created_at ?? null,
         unread_count: unread,
-        is_live: ch.channel_type === 'battlefield' && ch.is_active,
+        is_live: (ch.channel_type === 'battlefield' || ch.channel_type === 'war_side') && ch.is_active,
       })
     }
 
-    setWarRooms(enriched.filter(c => c.channel_type === 'war_room'))
-    setHessians(enriched.filter(c => c.channel_type === 'hessian'))
-    setBattlefields(enriched.filter(c => c.channel_type === 'battlefield'))
-    setDirects(enriched.filter(c => c.channel_type === 'direct'))
-
-    const hasAny = enriched.length > 0
-    setShowMock(!hasAny)
+    // Channels are created by the server: team chats when a faction forms, war chats when a war goes live
+    setTeamChats(enriched.filter(c => ['war_room', 'hessian', 'regiment'].includes(c.channel_type)))
+    setWarChats(enriched.filter(c => c.channel_type === 'war_side' && c.is_active))
+    setBattlefields(enriched.filter(c => c.channel_type === 'battlefield' && c.is_active))
+    setRecords(enriched.filter(c => ['war_side', 'battlefield'].includes(c.channel_type) && !c.is_active)
+      .sort((a, b) => (b.last_message_at ?? '').localeCompare(a.last_message_at ?? '')).slice(0, 10))
     setLoading(false)
   }, [supabase])
 
   useEffect(() => { fetchChannels() }, [fetchChannels])
 
-  const mockWarRooms: MockChannel[] = [
-    { id: 'mock-wr-1', name: 'Kappa Manor War Room', channel_type: 'war_room', member_count: 45, last_message_content: 'Alpha House just posted up at Funky\'s — intel confirmed', last_message_at: new Date(Date.now() - 120000).toISOString(), unread_count: 2, is_live: false, is_mock: true },
-  ]
-  const mockBattlefields: MockChannel[] = [
-    { id: 'mock-bf-1', name: 'The Library — Live Battle', channel_type: 'battlefield', member_count: 128, last_message_content: 'The Cabana talking big but they\'re 20 deep at best', last_message_at: new Date(Date.now() - 60000).toISOString(), unread_count: 5, is_live: true, is_mock: true },
-  ]
-
-  const renderChannelCard = (ch: ChannelWithMeta | MockChannel, accentColor: string) => {
+  const renderChannelCard = (ch: ChannelWithMeta, accentColor: string) => {
     const cfg = TYPE_CONFIG[ch.channel_type] ?? TYPE_CONFIG.direct
-    const isMock = (ch as MockChannel).is_mock
 
     return (
       <div
         key={ch.id}
-        onClick={() => isMock ? null : router.push(`/comms/${ch.id}`)}
+        onClick={() => router.push(`/comms/${ch.id}`)}
         className="card"
         style={{
-          cursor: isMock ? 'default' : 'pointer',
+          cursor: 'pointer',
           padding: '14px 16px',
           borderLeft: `3px solid ${accentColor}`,
           display: 'flex',
@@ -198,11 +178,6 @@ export default function CommsPage() {
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9, fontWeight: 700, color: 'var(--bw-red)' }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--bw-red)', animation: 'pulse 1.4s ease-in-out infinite' }} />
                 LIVE
-              </span>
-            )}
-            {isMock && (
-              <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--bw-muted)', background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 8 }}>
-                DEMO
               </span>
             )}
           </div>
@@ -232,9 +207,8 @@ export default function CommsPage() {
     )
   }
 
-  const renderSection = (title: string, accentColor: string, channels: (ChannelWithMeta | MockChannel)[], emptyMsg: string, mockChannels?: MockChannel[]) => {
-    const showMockSection = showMock && mockChannels && mockChannels.length > 0 && channels.length === 0
-    const items = channels.length > 0 ? channels : (showMockSection ? mockChannels! : [])
+  const renderSection = (title: string, accentColor: string, channels: ChannelWithMeta[], emptyMsg: string) => {
+    const items = channels
 
     return (
       <div>
@@ -281,10 +255,10 @@ export default function CommsPage() {
           </div>
         ) : (
           <>
-            {renderSection('Your War Rooms', 'var(--bw-violet)', warRooms, 'Join a Greek org to access your War Room', mockWarRooms)}
-            {renderSection('Hessian Comms', 'var(--bw-cyan)', hessians, 'Form or join a Hessian Company to unlock comms')}
-            {renderSection('Battlefield', 'var(--bw-red)', battlefields, 'No active battlefields. Comms open during live Shots Fired and War events.', mockBattlefields)}
-            {renderSection('Direct Messages', 'var(--bw-muted)', directs, 'No direct messages yet. Start a conversation from a profile.')}
+            {renderSection('Team Chats', 'var(--bw-violet)', teamChats, 'Join a Greek org, a Hessian company or a Regiment to get your team chat.')}
+            {renderSection('War Chats', 'var(--bw-flare)', warChats, 'Your side gets its own war chat when a Turf War goes live.')}
+            {renderSection('Battlefields', 'var(--bw-red)', battlefields, 'No live battles right now. Anyone can watch a live Battlefield; the two sides post.')}
+            {records.length > 0 && renderSection('War Records', 'var(--bw-muted)', records, '')}
           </>
         )}
       </div>
