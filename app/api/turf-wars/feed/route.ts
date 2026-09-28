@@ -38,6 +38,7 @@ export async function GET() {
   const mapped = (data as any[]).map(e => ({
     id: e.id,
     event_type: e.event_type,
+    headline: e.headline ?? null,
     bar_name: e.bar?.name ?? 'Unknown bar',
     org_name: e.org?.name ?? null,
     rival_org_name: e.claim?.defending_org?.name ?? null,

@@ -63,6 +63,12 @@ interface GhostProfile {
 interface GhostReport {
   id: string
   observation: string
+  bar?: string | null
+  status?: string
+  price?: number | null
+  second_price?: number | null
+  release_at?: string | null
+  sales?: { price: number; exclusive: boolean; rating: number | null }[]
   orgs_present: string | null
   headcount_estimate: number | null
   quality_rating: number | null
@@ -101,6 +107,12 @@ export default function SpyNetworkPage() {
   const [ghostObservation, setGhostObservation] = useState('')
   const [ghostOrgs, setGhostOrgs] = useState('')
   const [ghostHeadcount, setGhostHeadcount] = useState('')
+  // Ghost market (item 12b, Valor)
+  const [ghostData, setGhostData] = useState<any>(null)
+  const [ghostWar, setGhostWar] = useState('')
+  const [ghostPrice, setGhostPrice] = useState('20')
+  const [ghostSecond, setGhostSecond] = useState('10')
+  const [valor, setValor] = useState<number | null>(null)
 
   // Mole hunt form
   const [moleBarId, setMoleBarId] = useState('')
@@ -129,6 +141,8 @@ export default function SpyNetworkPage() {
       if (assetsData && !assetsData.error) setAssets(assetsData)
       if (cultData && !cultData.error) setCultivations(cultData)
       if (Array.isArray(moleData)) setMoleHunts(moleData)
+      if (ghostData && !ghostData.error) setGhostData(ghostData)
+      fetch('/api/wallet').then(r => r.ok ? r.json() : null).then(d => { if (d && typeof d.valor === 'number') setValor(d.valor) }).catch(() => {})
       if (ghostData && !ghostData.error) {
         if (ghostData.profile) {
           setGhostProfile(ghostData.profile)
@@ -259,6 +273,7 @@ export default function SpyNetworkPage() {
   }
 
   async function submitGhostReport() {
+    if (!ghostWar) { setActionResult('Pick the war this report is about'); return }
     if (!ghostObservation || ghostObservation.length < 10) { setActionResult('Observation must be at least 10 characters'); return }
     setActionLoading('ghost_report')
     setActionResult(null)
@@ -267,19 +282,16 @@ export default function SpyNetworkPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          claim_id: ghostWar,
           observation: ghostObservation,
           orgs_present: ghostOrgs || null,
           headcount_estimate: ghostHeadcount ? parseInt(ghostHeadcount) : null,
+          price: parseInt(ghostPrice), second_price: parseInt(ghostSecond),
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      setActionResult(data.upgrade_eligible ? data.message : 'Report submitted.')
-      if (data.upgrade_eligible) {
-        setActionResult('Three reports submitted! You\'re eligible for a full upgrade.')
-      } else {
-        setActionResult(`Report submitted. ${data.reports_count ?? 0} total.`)
-      }
+      setActionResult(data.message ?? 'Report filed.')
       setGhostObservation('')
       setGhostOrgs('')
       setGhostHeadcount('')
@@ -749,6 +761,19 @@ export default function SpyNetworkPage() {
                     Submit Observation Report
                   </div>
                   <div style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 12, fontWeight: 600 }}>War</label>
+                    {(ghostData?.ghost?.war_options ?? []).length === 0 ? (
+                      <div style={{ fontSize: 12, color: 'var(--bw-muted)', marginTop: 6 }}>No war you can report on right now (not your own faction&apos;s).</div>
+                    ) : (
+                      <select className="input" value={ghostWar} onChange={e => setGhostWar(e.target.value)} style={{ marginTop: 6 }}>
+                        <option value="">Pick a war…</option>
+                        {ghostData.ghost.war_options.map((w: any) => (
+                          <option key={w.claim_id} value={w.claim_id} disabled={w.reports_left === 0}>War at {w.bar} · {w.reports_left} of 3 left</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
                     <label style={{ fontSize: 12, fontWeight: 600 }}>What did you see?</label>
                     <textarea
                       className="input"
@@ -769,8 +794,21 @@ export default function SpyNetworkPage() {
                       <input className="input" type="number" value={ghostHeadcount} onChange={e => setGhostHeadcount(e.target.value)} placeholder="~50" style={{ marginTop: 6 }} />
                     </div>
                   </div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: 12, fontWeight: 600 }}>Exclusive price (Valor)</label>
+                      <input className="input" type="number" min={10} max={ghostData?.ghost?.rookie ? 40 : 100} value={ghostPrice} onChange={e => setGhostPrice(e.target.value)} style={{ marginTop: 6 }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: 12, fontWeight: 600 }}>Open-market price</label>
+                      <input className="input" type="number" min={10} value={ghostSecond} onChange={e => setGhostSecond(e.target.value)} style={{ marginTop: 6 }} />
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--bw-muted)', lineHeight: 1.5, marginBottom: 12 }}>
+                    For 1 hour, the first side of the war to pay the exclusive price gets it alone. Unsold, a headcount teaser posts on the war feed and the full report sells to any org leader or intel cell at the open-market price. Prices 10 to {ghostData?.ghost?.rookie ? '40 (Rookie: your first 3 reports)' : '100'}. Buyers see your codename and record, never who you are.
+                  </div>
                   <button className="btn btn-primary" onClick={submitGhostReport} disabled={actionLoading === 'ghost_report'}>
-                    <Send size={16} /> {actionLoading === 'ghost_report' ? 'Submitting…' : 'Submit Report'}
+                    <Send size={16} /> {actionLoading === 'ghost_report' ? 'Filing…' : 'File Report'}
                   </button>
                 </div>
 
@@ -787,7 +825,11 @@ export default function SpyNetworkPage() {
                           <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'var(--bw-muted)' }}>
                             {r.orgs_present && <span>Orgs: {r.orgs_present}</span>}
                             {r.headcount_estimate && <span>~{r.headcount_estimate} people</span>}
-                            {r.quality_rating && <span style={{ color: 'var(--bw-gold)' }}>Rated {r.quality_rating}/5</span>}
+                            {r.bar && <span>War at {r.bar}</span>}
+                            {r.status && <span style={{ color: r.status === 'sold' ? 'var(--bw-green)' : 'var(--bw-muted)' }}>
+                              {r.status === 'sold' ? 'Sold exclusive' : r.status === 'public' ? 'Open market' : `Exclusive until ${r.release_at ? new Date(r.release_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''}`}
+                            </span>}
+                            {(r.sales ?? []).length > 0 && <span style={{ color: 'var(--bw-gold)' }}>+{(r.sales ?? []).reduce((a, x) => a + x.price, 0)} Valor</span>}
                           </div>
                         </div>
                       ))}
@@ -796,6 +838,17 @@ export default function SpyNetworkPage() {
                 )}
               </>
             )}
+
+            <GhostMarket data={ghostData} valor={valor} busy={actionLoading}
+              onAction={async (key: string, body: any, okText: string) => {
+                setActionLoading(key); setActionResult(null)
+                try {
+                  const res = await fetch('/api/turf-wars/spies/ghost', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+                  const d = await res.json()
+                  if (!res.ok) throw new Error(d.error)
+                  setActionResult(d.message ?? okText); loadAll()
+                } catch (e: any) { setActionResult(e.message) } finally { setActionLoading(null) }
+              }} />
           </>
         )}
       </div>
@@ -831,5 +884,91 @@ function SpyTypeRow({ icon, name, desc }: { icon: React.ReactNode; name: string;
         <div style={{ color: 'var(--bw-muted)', fontSize: 11 }}>{desc}</div>
       </div>
     </div>
+  )
+}
+
+/** Ghost market (item 12b): teasers to buy, purchased reports, and the Ghost leaderboard. */
+function GhostMarket({ data, valor, busy, onAction }: { data: any; valor: number | null; busy: string | null; onAction: (key: string, body: any, okText: string) => void }) {
+  if (!data) return null
+  const market: any[] = data.market ?? []
+  const purchased: any[] = data.purchased ?? []
+  const board: any[] = data.leaderboard ?? []
+  const head = (t: string) => <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--bw-muted)', margin: '14px 0 8px' }}>{t}</div>
+  const rec = (r: any) => r ? `${r.sold} sold${r.rating ? ` · ${r.rating}★ (${r.ratings})` : ''}` : ''
+  return (
+    <>
+      {market.length > 0 && (
+        <>
+          {head(`Ghost market${valor != null ? ` · you have ${valor} Valor` : ''}`)}
+          <div className="stack stack-sm">
+            {market.map(m => (
+              <div key={m.id} className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>Report on the war at {m.bar}</div>
+                    <div style={{ fontSize: 11, color: 'var(--bw-muted)' }}>
+                      Ghost {m.codename}{m.rookie ? ' · Rookie' : ''} · {rec(m.record)} · filed {new Date(m.filed_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                    </div>
+                    <div style={{ fontSize: 11, color: m.mode === 'exclusive' ? 'var(--bw-gold)' : 'var(--bw-muted)', marginTop: 2 }}>
+                      {m.mode === 'exclusive' ? `Exclusive until ${new Date(m.closes_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}: first side to buy gets it alone` : 'Open market: other buyers may have it too'}
+                    </div>
+                  </div>
+                  <button className="btn btn-primary" disabled={busy === m.id || !m.sides?.length} style={{ fontSize: 12, padding: '6px 12px', alignSelf: 'center', flexShrink: 0 }}
+                    onClick={() => onAction(m.id, { action: 'buy', report_id: m.id, org_id: m.sides[0]?.org_id ?? undefined, company_id: m.sides[0]?.company_id ?? undefined }, 'Bought.')}>
+                    {m.price} Valor
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      {purchased.length > 0 && (
+        <>
+          {head('Reports your side bought')}
+          <div className="stack stack-sm">
+            {purchased.map(p => (
+              <div key={p.id} className="card" style={{ userSelect: 'none' }}>
+                <div style={{ fontSize: 11, color: 'var(--bw-gold)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>
+                  Ghost {p.codename} · war at {p.bar}{p.exclusive ? ' · exclusive' : ''}
+                </div>
+                <div style={{ fontSize: 13, lineHeight: 1.45 }}>{p.observation}</div>
+                <div style={{ fontSize: 11, color: 'var(--bw-muted)', marginTop: 4 }}>
+                  {p.headcount_estimate ? `~${p.headcount_estimate} people · ` : ''}{p.orgs_present ? `Orgs: ${p.orgs_present}` : ''}
+                </div>
+                {p.i_bought && (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {p.war_active ? <span style={{ fontSize: 11, color: 'var(--bw-muted)' }}>Rate it after the war.</span>
+                      : [1, 2, 3, 4, 5].map(n => (
+                        <button key={n} className="btn" disabled={busy === p.id} style={{ fontSize: 11, padding: '3px 8px', ...(p.rating === n ? { color: 'var(--bw-gold)' } : {}) }}
+                          onClick={() => onAction(p.id, { action: 'rate', report_id: p.id, rating: n }, 'Thanks for rating.')}>{n}★</button>
+                      ))}
+                    {!p.flagged ? (
+                      <button className="btn" disabled={busy === p.id} style={{ fontSize: 11, padding: '3px 8px', marginLeft: 'auto' }}
+                        onClick={() => { const note = prompt('What was fake about this report?'); if (note) onAction(p.id, { action: 'flag', report_id: p.id, note }, 'Flagged for staff review.') }}>
+                        Flag as fake
+                      </button>
+                    ) : <span style={{ fontSize: 11, color: 'var(--bw-flare)', marginLeft: 'auto' }}>Flagged for review</span>}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      {board.length > 0 && (
+        <>
+          {head('Top Ghosts')}
+          <div className="card">
+            {board.map((g, i) => (
+              <div key={g.codename} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0' }}>
+                <span>#{i + 1} {g.codename}</span>
+                <span style={{ color: 'var(--bw-muted)' }}>{g.sold} sold · {g.valor_earned} Valor{g.rating ? ` · ${g.rating}★` : ''}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </>
   )
 }

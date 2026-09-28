@@ -10,6 +10,7 @@ interface FeedEvent {
   org_name: string | null
   rival_org_name: string | null
   created_at: string
+  headline?: string | null
 }
 
 interface LeaderboardEntry {
@@ -110,6 +111,10 @@ const EVENT_CONFIG: Record<string, { icon: typeof Flame; color: string; label: (
     icon: Shield, color: '#2ECC71',
     label: e => `${e.org_name} defended turf at ${e.bar_name}`,
   },
+  ghost_report: {
+    icon: Crosshair, color: '#8B9BB4',
+    label: e => `A Ghost reported from ${e.bar_name}`,
+  },
   rally_called: {
     icon: Bell, color: '#F5B800',
     label: e => `${e.org_name} called a rally at ${e.bar_name}`,
@@ -174,7 +179,7 @@ function FeedTab() {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, color: '#F0F0F0', lineHeight: 1.4 }}>
-                {cfg.label(event)}
+                {(event.headline || cfg.label(event))}
               </div>
               <div style={{ fontSize: 10, color: 'var(--bw-muted)', marginTop: 3 }}>
                 {timeAgo(event.created_at)}
