@@ -1,5 +1,6 @@
 'use client'
 
+import { createClient as createBrowserSupabase } from '@/lib/supabase-client'
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import BottomNav from '@/components/BottomNav'
@@ -343,6 +344,23 @@ export default function TurfBattlePage() {
             )}
             {claim.result && <div style={{ fontSize: 13, color: 'var(--bw-muted)', marginTop: 6 }}>{claim.result}</div>}
           </div>
+        )}
+
+        {/* Public Watch Link (item 18): anyone can watch the Battlefield, Roar and Shout, no app needed */}
+        {claim.status !== 'cancelled' && (
+          <button className="btn btn-ghost" style={{ fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+            onClick={async () => {
+              let ref = ''
+              try { const { data } = await createBrowserSupabase().auth.getUser(); ref = data.user?.id.replace(/-/g, '').slice(0, 12) ?? '' } catch {}
+              const url = `${window.location.origin}/watch/${claim.id}${ref ? `?ref=${ref}` : ''}`
+              const text = `Watch the Turf War at ${claim.bar?.name ?? 'the bar'} live on BarWars`
+              try {
+                if ((navigator as any).share) await (navigator as any).share({ title: text, text, url })
+                else { await navigator.clipboard.writeText(url); setCheckinResult('Watch Link copied.') }
+              } catch (e: any) { if (e?.name !== 'AbortError') setCheckinResult('Could not share the link.') }
+            }}>
+            📡 Share Watch Link (anyone can watch)
+          </button>
         )}
 
         {/* Combatants */}

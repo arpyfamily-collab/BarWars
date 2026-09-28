@@ -41,7 +41,8 @@ export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname
 
   // Everyone starts at the sign-in / sign-up screen until they have an account session
-  const PUBLIC_PATHS = ['/login', '/privacy', '/review']
+  // /watch: public Watch Links for Turf Wars (To-Do item 18), no account needed to watch
+  const PUBLIC_PATHS = ['/login', '/privacy', '/review', '/watch']
   const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + '/'))
   if (!user && !isPublic) {
     const url = new URL('/login', req.url)

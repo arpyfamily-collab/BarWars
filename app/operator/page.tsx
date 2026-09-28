@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import Link from 'next/link'
 import FactionMoveTool from './FactionMoveTool'
 import TestersTool from './TestersTool'
+import ShoutsTool from './ShoutsTool'
 
 export const dynamic = 'force-dynamic'
 
@@ -230,6 +231,7 @@ export default async function OperatorOverview() {
 
       <FactionMoveTool />
       <TestersTool />
+      <ShoutsTool />
     </div>
   )
 }
