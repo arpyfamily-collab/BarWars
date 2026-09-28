@@ -15,6 +15,10 @@ export default async function OperatorLayout({ children }: { children: React.Rea
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // Staff only: players (and testers) never see the operator console
+  const { data: me } = await supabase.from('profiles').select('is_staff').eq('id', user.id).maybeSingle()
+  if (!me?.is_staff) redirect('/')
+
   return (
     <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--bw-black)' }}>
       {/* Sidebar */}
