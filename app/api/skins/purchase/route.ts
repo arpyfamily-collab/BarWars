@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   // Look up the skin
   const { data: skin, error: skinError } = await supabase
     .from('skins')
-    .select('id, name, category, price_cents, rental_only, rental_hours, active, requires_badge, requires_role')
+    .select('id, name, category, price_cents, rental_only, rental_hours, active, requires_badge, requires_role, sponsor_venue_id, available_from, available_until, max_supply, sold_count, venue:venues!sponsor_venue_id(name)')
     .eq('id', skin_id)
     .maybeSingle()
 
@@ -29,6 +29,20 @@ export async function POST(req: NextRequest) {
 
   if (!skin.active) {
     return NextResponse.json({ error: 'This skin is no longer available' }, { status: 400 })
+  }
+
+  // Bar-sponsored skins (item 21) are only unlocked by checking in at that bar during a live war there
+  const sk: any = skin
+  if (sk.sponsor_venue_id) {
+    return NextResponse.json({ error: `Fight a war at ${sk.venue?.name ?? 'the sponsoring bar'} to unlock this skin.` }, { status: 403 })
+  }
+  // Season window and limited supply were never checked here
+  const nowIso = new Date().toISOString()
+  if ((sk.available_from && sk.available_from > nowIso) || (sk.available_until && sk.available_until <= nowIso)) {
+    return NextResponse.json({ error: 'This skin is not available right now.' }, { status: 400 })
+  }
+  if (sk.max_supply != null && (sk.sold_count ?? 0) >= sk.max_supply) {
+    return NextResponse.json({ error: 'Sold out.' }, { status: 409 })
   }
 
   // Check if already owned (non-rental)

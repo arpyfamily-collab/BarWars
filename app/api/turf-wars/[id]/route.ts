@@ -26,7 +26,7 @@ export async function GET(
       attacker_score, defender_score, winner_org_id, underdog_bonus, resolved_at,
       attacking_org:greek_orgs!attacking_org_id(name, org_type),
       defending_org:greek_orgs!defending_org_id(name, org_type),
-      bar:venues(id, name)
+      bar:venues(id, name, barwars_line)
     `)
     .eq('id', params.id)
     .maybeSingle()

@@ -10,6 +10,7 @@ export const dynamic = 'force-dynamic'
  * GET ?venue_id=                               → plans, recent firings, armed-for-tonight flag
  * POST { venue_id, action: 'create', offer_text, details?, is_drink, scope, cap, nights[], days }
  * POST { venue_id, action: 'pause' | 'resume' | 'delete', plan_id }
+ * POST { venue_id, action: 'line', on }       → optional dedicated BarWars line (item 22)
  * POST { venue_id, action: 'redeem', code }    → staff verify a player's code at the door
  */
 export async function GET(req: NextRequest) {
@@ -23,12 +24,14 @@ export async function GET(req: NextRequest) {
       .eq('venue_id', venueId!).order('fired_at', { ascending: false }).limit(20),
     s.rpc('bar_night'),
   ])
+  const { data: venue } = await s.from('venues').select('barwars_line').eq('id', venueId!).maybeSingle()
   const dow = night ? new Date(`${night}T12:00:00Z`).getUTCDay() : new Date().getDay()
   const now = Date.now()
   const armedTonight = ((plans as any[]) ?? []).filter(p => !p.paused && new Date(p.expires_at).getTime() > now && (p.nights ?? []).includes(dow))
   return ok({
     plans: plans ?? [],
     firings: ((firings as any[]) ?? []).map(f => ({ ...f, war_bar: f.claim?.bar?.name ?? null, claim: undefined })),
+    barwars_line: !!(venue as any)?.barwars_line,
     tonight: night, armed_tonight: armedTonight.length, fired_tonight: ((firings as any[]) ?? []).some(f => f.night === night),
   })
 }
@@ -64,6 +67,13 @@ export async function POST(req: NextRequest) {
     const { error: e } = await q.eq('id', body.plan_id).eq('venue_id', body.venue_id)
     if (e) return err('Could not update the Battle Plan.', 500)
     return ok({ ok: true })
+  }
+
+  // Optional perk (item 22): the bar runs a dedicated BarWars line. Never required.
+  if (body.action === 'line') {
+    const { error: e } = await s.from('venues').update({ barwars_line: body.on === true }).eq('id', body.venue_id)
+    if (e) return err('Could not update.', 500)
+    return ok({ barwars_line: body.on === true })
   }
 
   if (body.action === 'redeem') {

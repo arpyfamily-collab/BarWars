@@ -177,15 +177,16 @@ export async function POST(req: NextRequest) {
   const isAttacker = claimAny.attacking_org_id === userOrgId
   const isDefender = claimAny.defending_org_id === userOrgId
 
-  // 6. For geo-pulse: verify location
-  if (body.method === 'geo_pulse') {
-    // Check location opt-in (already fetched in step 3b)
-    if (!p.location_opt_in) {
+  // 6. Verify location for every check-in. The "QR" check-in never scanned or verified anything,
+  //    so anyone could check in to any war at full strength from anywhere (found Sep 28, item 22).
+  //    Until bars have real check-in QR codes, both methods must be within 100 m of the bar.
+  {
+    if (body.method === 'geo_pulse' && !p.location_opt_in) {
       return err('Location sharing must be enabled for geo-pulse check-in', 403)
     }
 
     if (body.latitude == null || body.longitude == null) {
-      return err('latitude and longitude are required for geo-pulse check-in', 400)
+      return err('Turn on location to check in: you need to be at the bar.', 400)
     }
 
     // Verify within 100m of bar using Haversine
@@ -203,6 +204,22 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // 6b. Line check-ins (Testing To-Do item 22). A location check-in means "I'm here / in line" and
+  //     counts at half; the QR scan inside counts in full and upgrades an earlier line check-in.
+  //     Turnout counts the person either way. Time in line earns a little Valor (paid on scan-in).
+  if (body.method === 'qr_scan') {
+    const { data: up } = await service.rpc('upgrade_line_checkin', { p_user: userId!, p_claim: body.claim_id, p_weight: weight })
+    if (up) {
+      const valor = Number((up as any).line_valor) || 0
+      return ok({
+        id: (up as any).checkin_id, method: 'qr_scan', upgraded: true, line_valor: valor, is_attacker: isAttacker,
+        message: `You're inside: now counting in full.${valor > 0 ? ` +${valor} Valor for the wait.` : ''}`,
+      })
+    }
+  }
+  const inLine = body.method === 'geo_pulse'
+  if (inLine) weight = Math.round(weight * 50) / 100
+
   // 7. Insert the check-in
   // If user is flagged as a burner, the checkin still goes through but
   // gets added to the flagged_checkins review queue (Layer 4)
@@ -219,6 +236,7 @@ export async function POST(req: NextRequest) {
       headcount_weight: weight,
       hessian_contract_id: hessianContractId,
       mercenary_contract_id: mercenaryContractId,
+      line_since: inLine ? new Date().toISOString() : null,
     })
     .select('id, verified_at, method')
     .single()
@@ -296,6 +314,8 @@ export async function POST(req: NextRequest) {
 
   return ok({
     ...checkin,
+    in_line: inLine,
+    message: inLine ? "You're checked in from the line: counting at half. Scan the QR inside for full strength." : undefined,
     is_attacker: isAttacker,
     attacker_headcount: newAttackerCount,
     defender_headcount: newDefenderCount,

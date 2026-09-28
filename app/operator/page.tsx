@@ -3,6 +3,7 @@ import Link from 'next/link'
 import FactionMoveTool from './FactionMoveTool'
 import TestersTool from './TestersTool'
 import ShoutsTool from './ShoutsTool'
+import SponsoredSkinsTool from './SponsoredSkinsTool'
 
 export const dynamic = 'force-dynamic'
 
@@ -232,6 +233,7 @@ export default async function OperatorOverview() {
       <FactionMoveTool />
       <TestersTool />
       <ShoutsTool />
+      <SponsoredSkinsTool />
     </div>
   )
 }

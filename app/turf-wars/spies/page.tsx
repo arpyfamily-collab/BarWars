@@ -1,5 +1,6 @@
 'use client'
 
+import LoyaltySweepPanel from '@/components/LoyaltySweepPanel'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
@@ -336,6 +337,9 @@ export default function SpyNetworkPage() {
             </div>
           </div>
         )}
+
+        {/* Loyalty sweeps (item 24): leaders only; renders nothing for everyone else */}
+        <LoyaltySweepPanel />
 
         {/* Leadership alerts: private to the org's leaders, never name the member */}
         {alerts.length > 0 && (

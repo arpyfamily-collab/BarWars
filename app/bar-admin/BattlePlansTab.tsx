@@ -71,6 +71,19 @@ export default function BattlePlansTab({ venueId }: { venueId: string }) {
         </Panel>
       )}
 
+      {d && (
+        <Panel>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: 15 }}>🚦 BarWars line (optional)</div>
+              <div style={{ fontSize: 12, color: C.dim }}>Players in your line already count at half and earn a little Valor while they wait. Switch this on if you run a separate BarWars line; it shows on the war page. Never required.</div>
+            </div>
+            <button style={{ ...small, ...(d.barwars_line ? { color: C.green, borderColor: C.green } : {}) }}
+              onClick={() => post({ action: 'line', on: !d.barwars_line }).then(load)}>{d.barwars_line ? 'On' : 'Off'}</button>
+          </div>
+        </Panel>
+      )}
+
       <Panel accent={C.gold}>
         <Title>🎟️ Redeem a code</Title>
         <div style={{ display: 'flex', gap: 8 }}>

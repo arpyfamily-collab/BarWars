@@ -17,7 +17,8 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await service
     .from('spy_recruitments')
-    .select('id, recruiter_type, status, is_platform_test, loyalty_flag, created_at, resolved_at')
+    // Never send is_platform_test or loyalty_flag: loyalty tests must look exactly like real approaches (item 24)
+    .select('id, recruiter_type, status, created_at, resolved_at')
     .eq('target_user_id', userId!)
     .order('created_at', { ascending: false })
 
@@ -100,7 +101,8 @@ export async function POST(req: NextRequest) {
           })
         }
 
-        return ok({ id: body.recruitment_id, status: 'accepted', loyalty_flag: 'susceptible' })
+        // Same reply as a real approach, so the member can't tell it was a test
+        return ok({ id: body.recruitment_id, status: 'accepted', message: 'You are now an active spy asset. Intel reports expire after 24 hours.' })
       }
 
       // Real recruitment — create spy asset

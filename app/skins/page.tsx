@@ -22,6 +22,10 @@ interface Skin {
   active: boolean
   sold_count: number
   requires_badge: string | null
+  sponsor_venue_id?: string | null
+  max_supply?: number | null
+  available_until?: string | null
+  venue?: { name: string } | null
 }
 
 interface UserSkin {
@@ -129,12 +133,12 @@ export default function SkinsPage() {
     // Fetch all active skins
     const { data: skinData } = await supabase
       .from('skins')
-      .select('id, name, slug, description, category, rarity, icon_url, price_cents, rental_only, rental_hours, active, sold_count, requires_badge')
+      .select('id, name, slug, description, category, rarity, icon_url, price_cents, rental_only, rental_hours, active, sold_count, requires_badge, sponsor_venue_id, max_supply, available_until, venue:venues!sponsor_venue_id(name)')
       .eq('active', true)
       .order('category')
       .order('price_cents')
 
-    setSkins((skinData as Skin[]) ?? [])
+    setSkins((skinData as unknown as Skin[]) ?? [])
 
     if (!user) {
       setLoading(false)
@@ -480,6 +484,11 @@ export default function SkinsPage() {
                           >
                             {actionSkinId === skin.id ? '...' : `Re-rent ${fmtPrice(skin.price_cents)}`}
                           </button>
+                        ) : skin.sponsor_venue_id ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--bw-gold)' }}>
+                            <Lock size={14} /> Sponsored by {skin.venue?.name ?? 'a bar'}: fight a war there to unlock
+                            {skin.max_supply != null ? ` · ${Math.max(0, skin.max_supply - (skin.sold_count ?? 0))} left` : ''}
+                          </div>
                         ) : skin.requires_badge ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--bw-muted)' }}>
                             <Lock size={14} /> Requires badge: {skin.requires_badge}

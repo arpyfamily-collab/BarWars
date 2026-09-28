@@ -31,7 +31,7 @@ interface ClaimDetail {
   underdog_bonus?: boolean
   attacking_org: { name: string; org_type: string }
   defending_org: { name: string; org_type: string } | null
-  bar: { id: string; name: string }
+  bar: { id: string; name: string; barwars_line?: boolean }
 }
 
 interface MyMembership {
@@ -93,7 +93,8 @@ export default function TurfBattlePage() {
         method,
       }
 
-      if (method === 'geo_pulse' && 'geolocation' in navigator) {
+      // Every check-in sends location: you have to be at the bar (item 22)
+      if ('geolocation' in navigator) {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 })
         })
@@ -109,7 +110,7 @@ export default function TurfBattlePage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
 
-      setCheckinResult(data.checked_in_as === 'hessian' ? 'Checked in as a hired Hessian: you count 0.75 for the side that hired you.'
+      setCheckinResult(data.message ? `Checked in. ${data.message}` : data.checked_in_as === 'hessian' ? 'Checked in as a hired Hessian: you count 0.75 for the side that hired you.'
         : data.checked_in_as === 'mercenary' ? 'Checked in as a hired mercenary: you count 0.75 for the side that hired you.'
         : `Checked in! Your side has ${data.is_attacker ? data.attacker_headcount : data.defender_headcount} at the bar.`)
       fetchClaim()
@@ -420,6 +421,10 @@ export default function TurfBattlePage() {
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--bw-muted)', marginBottom: 14 }}>
               Check In
             </div>
+            <div style={{ fontSize: 12, color: 'var(--bw-muted)', marginBottom: 10 }}>
+              Waiting outside? Check in from the line: you count at half and earn Valor while you wait, then scan in for full strength.
+              {claim.bar?.barwars_line ? ' 🚦 This bar runs a BarWars line.' : ''}
+            </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button
                 className="btn btn-primary"
@@ -437,7 +442,7 @@ export default function TurfBattlePage() {
                 disabled={checkingIn}
               >
                 <Navigation size={18} />
-                Geo Check
+                In Line (½)
               </button>
             </div>
             {checkinResult && (
