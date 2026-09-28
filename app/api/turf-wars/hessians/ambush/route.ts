@@ -38,6 +38,10 @@ export async function POST(req: NextRequest) {
 
   if (!company) return err('Only Hessian Captains can declare ambushes', 403)
 
+  // A captain serving their step-down notice can't start new ambushes (To-Do item 9)
+  const { data: onNotice } = await service.rpc('captain_on_notice', { p_type: 'company', p_id: (company as any).id })
+  if (onNotice) return err("You're stepping down as captain, so you can't start new ambushes. The next captain can.", 409)
+
   const compAny = company as any
 
   // Must have at least 5 verified members

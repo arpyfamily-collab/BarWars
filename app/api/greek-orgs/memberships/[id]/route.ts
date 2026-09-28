@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth, ok, err } from '@/lib/challenges'
+import { factionError } from '@/lib/factions'
 
 /**
  * PATCH /api/greek-orgs/memberships/[id]
@@ -66,7 +67,7 @@ export async function PATCH(
       .select('id, role, verified')
       .single()
 
-    if (error) return err(error.message, 500)
+    if (error) { const e = factionError(error.message); return err(e.message, e.status) }
 
     // Update org's verified_member_count
     const { data: countData } = await service

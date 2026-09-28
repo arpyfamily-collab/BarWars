@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import DeleteAccount from '@/components/DeleteAccount'
 import BlockedPlayers from '@/components/BlockedPlayers'
 import { Shield, ChevronRight, Zap, Sparkles } from 'lucide-react'
+import YourFactions from '@/components/YourFactions'
 
 export default async function AccountPage() {
   const supabase = createServerSupabaseClient()
@@ -42,6 +43,7 @@ export default async function AccountPage() {
       </div>
 
       <div className="page-content">
+        <YourFactions />
 
         {/* Bar Command Center (bar admins only) */}
         {isBarAdmin && (

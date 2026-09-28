@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createServiceClient, createServerSupabaseClient } from '@/lib/supabase'
 import { requireAuth, ok, err } from '@/lib/challenges'
+import { factionError } from '@/lib/factions'
 
 /**
  * GET /api/greek-orgs — list all Greek orgs (public)
@@ -72,7 +73,12 @@ export async function POST(req: NextRequest) {
       verified_at: new Date().toISOString(),
     })
 
-  if (memberError) return err(memberError.message, 500)
+  if (memberError) {
+    // The founder is blocked by a faction rule (e.g. they're a Hessian): don't leave an orphan org
+    await service.from('greek_orgs').delete().eq('id', (org as any).id)
+    const e = factionError(memberError.message)
+    return err(e.message, e.status)
+  }
 
   return ok(org, 201)
 }

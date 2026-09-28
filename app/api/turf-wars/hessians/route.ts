@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth, ok, err } from '@/lib/challenges'
+import { factionError } from '@/lib/factions'
 
 export const dynamic = 'force-dynamic'
 
@@ -98,7 +99,7 @@ export async function POST(req: NextRequest) {
     .select('id, name, created_at')
     .single()
 
-  if (insertErr) return err(insertErr.message, 500)
+  if (insertErr) { const e = factionError(insertErr.message); return err(e.message, e.status) }
 
   // Add the captain as a verified member
   await service

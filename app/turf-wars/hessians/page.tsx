@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import BottomNav from '@/components/BottomNav'
 import { Skull, UserPlus, AlertCircle, Check, Users, Crosshair, Shield } from 'lucide-react'
+import YourFactions from '@/components/YourFactions'
 
 interface Company {
   id: string
@@ -70,6 +71,7 @@ export default function HessiansPage() {
       </div>
 
       <div className="page-content">
+        <YourFactions types={['company', 'mercenary']} />
         {error && (
           <div className="card" style={{ borderColor: 'rgba(224,49,49,0.3)', background: 'rgba(224,49,49,0.08)' }}>
             <div style={{ fontSize: 13, color: 'var(--bw-red)', display: 'flex', alignItems: 'center', gap: 6 }}>

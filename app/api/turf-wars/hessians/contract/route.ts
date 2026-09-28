@@ -52,6 +52,12 @@ export async function POST(req: NextRequest) {
       return err('Only the Captain can respond to contracts', 403)
     }
 
+    // A captain serving their step-down notice can't take on new contracts (To-Do item 9)
+    if (['accept', 'double_cross'].includes(body.action)) {
+      const { data: onNotice } = await service.rpc('captain_on_notice', { p_type: 'company', p_id: c.company_id })
+      if (onNotice) return err("You're stepping down as captain, so you can't take new contracts. The next captain can.", 409)
+    }
+
     if (c.status !== 'pending') {
       return err(`Contract is already ${c.status}`, 409)
     }

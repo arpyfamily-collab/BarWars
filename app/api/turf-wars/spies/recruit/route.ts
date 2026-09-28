@@ -209,6 +209,12 @@ export async function POST(req: NextRequest) {
     companyId = (company as any).id
   }
 
+  // Faction rules (To-Do item 10): only a rival side's member, never your own; 14 days after quitting
+  const { data: blocked } = await service.rpc('recruit_block', {
+    p_recruiter_org: orgId, p_recruiter_company: companyId, p_target: body.target_user_id,
+  })
+  if (blocked) return err(blocked as string, 403)
+
   // Check for existing pending recruitment to this user
   const { data: existing } = await service
     .from('spy_recruitments')

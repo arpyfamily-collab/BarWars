@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth, ok, err } from '@/lib/challenges'
+import { factionError } from '@/lib/factions'
 
 /**
  * POST /api/greek-orgs/memberships — request to join an org
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
     .select('id, role, verified')
     .single()
 
-  if (error) return err(error.message, 500)
+  if (error) { const e = factionError(error.message); return err(e.message, e.status) }
   return ok(membership, 201)
 }
 

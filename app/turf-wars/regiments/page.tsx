@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
 import { Users, UserPlus, Check, X, Skull, Crosshair, Sparkles, AlertCircle, PartyPopper } from 'lucide-react'
+import YourFactions from '@/components/YourFactions'
 
 interface FinderProfile {
   user_id: string
@@ -261,6 +262,7 @@ export default function RegimentsPage() {
       </div>
 
       <div className="page-content">
+        <YourFactions types={['regiment']} />
         {error && (
           <div className="card" style={{ borderColor: 'rgba(224,49,49,0.3)', background: 'rgba(224,49,49,0.08)' }}>
             <div style={{ fontSize: 13, color: 'var(--bw-red)', display: 'flex', alignItems: 'center', gap: 6 }}>

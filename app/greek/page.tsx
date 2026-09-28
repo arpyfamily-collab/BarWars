@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import BottomNav from '@/components/BottomNav'
+import YourFactions from '@/components/YourFactions'
 
 type OrgType = 'fraternity' | 'sorority'
 
@@ -80,6 +81,7 @@ export default function GreekOrgPage() {
       </div>
 
       <div className="page-content">
+        <YourFactions types={['greek']} />
         {success && (
           <div className="card" style={{ borderColor: 'rgba(46,204,113,0.3)', background: 'rgba(46,204,113,0.08)' }}>
             <div style={{ fontSize: 13, color: 'var(--bw-green)' }}>{success}</div>

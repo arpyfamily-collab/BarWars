@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
 import Link from 'next/link'
+import FactionMoveTool from './FactionMoveTool'
 
 export const dynamic = 'force-dynamic'
 
@@ -225,6 +226,8 @@ export default async function OperatorOverview() {
           </div>
         </div>
       )}
+
+      <FactionMoveTool />
     </div>
   )
 }

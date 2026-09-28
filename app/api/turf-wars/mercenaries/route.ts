@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth, ok, err } from '@/lib/challenges'
+import { factionError } from '@/lib/factions'
 
 export const dynamic = 'force-dynamic'
 
@@ -104,22 +105,24 @@ export async function POST(req: NextRequest) {
   if (body.action === 'register') {
     const { data: existing } = await service
       .from('mercenaries')
-      .select('id')
+      .select('id, is_active')
       .eq('user_id', userId!)
       .maybeSingle()
 
-    if (existing) return err('You are already registered as a mercenary', 409)
+    if (existing && (existing as any).is_active) return err('You are already registered as a mercenary', 409)
 
-    // Must not be a verified Greek org member (mercenaries are solo, no allegiance)
-    // Actually — spec says "anyone" can be a mercenary. But Hessians with companies
-    // can't also be solo mercenaries. Check for Hessian membership.
-    const { data: hessianMember } = await service
-      .from('hessian_members')
-      .select('id')
-      .eq('user_id', userId!)
-      .maybeSingle()
-
-    if (hessianMember) return err('Hessian Company members cannot also be solo mercenaries. Leave your company first.', 409)
+    // Faction rules live in the database (To-Do item 10): Hessians can be solo mercenaries,
+    // Greek members can't, and re-registering waits out the 7-day cooldown.
+    if (existing) {
+      const { data, error } = await service
+        .from('mercenaries')
+        .update({ is_active: true })
+        .eq('id', (existing as any).id)
+        .select('id, is_anonymous, is_sniper, sniper_eligible')
+        .single()
+      if (error) { const e = factionError(error.message); return err(e.message, e.status) }
+      return ok({ ...data, message: 'Welcome back, Mercenary.' })
+    }
 
     const { data, error } = await service
       .from('mercenaries')
@@ -133,7 +136,7 @@ export async function POST(req: NextRequest) {
       .select('id, is_anonymous, is_sniper, sniper_eligible')
       .single()
 
-    if (error) return err(error.message, 500)
+    if (error) { const e = factionError(error.message); return err(e.message, e.status) }
 
     return ok({ ...data, message: 'You are now a Mercenary. No loyalty. No company. Just the job.' }, 201)
   }

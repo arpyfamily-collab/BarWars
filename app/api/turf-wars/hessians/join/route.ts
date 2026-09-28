@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth, ok, err } from '@/lib/challenges'
+import { factionError } from '@/lib/factions'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,7 +55,8 @@ export async function POST(req: NextRequest) {
 
   if (insertErr) {
     if (insertErr.code === '23505') return err('You have already requested to join this company', 409)
-    return err(insertErr.message, 500)
+    const e = factionError(insertErr.message)
+    return err(e.message, e.status)
   }
 
   return ok({ ...membership, message: 'Join request submitted. The Captain must verify you.' }, 201)

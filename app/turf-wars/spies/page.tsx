@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
 import { Eye, Skull, Shield, Ghost as GhostIcon, Crosshair, AlertCircle, Check, X, FileText, Flame, BadgeCheck, Sparkles, Send } from 'lucide-react'
+import YourFactions from '@/components/YourFactions'
 
 interface Recruitment {
   id: string
@@ -297,6 +298,7 @@ export default function SpyNetworkPage() {
       </div>
 
       <div className="page-content">
+        <YourFactions types={['spy']} />
         {actionResult && (
           <div className="card" style={{
             borderColor: actionResult.includes('error') || actionResult.includes('Error') ? 'rgba(224,49,49,0.3)' : 'rgba(245,184,0,0.3)',

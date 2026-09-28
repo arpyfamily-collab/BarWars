@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import BottomNav from '@/components/BottomNav'
 import { Skull, Crosshair, Eye, Flame, AlertCircle, Check, X, Send, Trophy, Coins, Shield, Zap, User } from 'lucide-react'
+import YourFactions from '@/components/YourFactions'
 
 type Tab = 'exchange' | 'sniper' | 'scorched'
 
@@ -310,6 +311,7 @@ export default function MercenariesPage() {
       </div>
 
       <div className="page-content">
+        <YourFactions types={['mercenary']} />
         {result && (
           <div className="card" style={{
             borderColor: result.includes('error') || result.includes('Error') ? 'rgba(224,49,49,0.3)' : 'rgba(245,184,0,0.3)',

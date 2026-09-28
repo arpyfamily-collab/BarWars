@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth, ok, err } from '@/lib/challenges'
+import { factionError } from '@/lib/factions'
 
 export const dynamic = 'force-dynamic'
 
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
     .select('id, name, created_at')
     .single()
 
-  if (regErr) return err(regErr.message, 500)
+  if (regErr) { const e = factionError(regErr.message); return err(e.message, e.status) }
 
   const regId = (regiment as any).id
 
@@ -82,7 +83,12 @@ export async function POST(req: NextRequest) {
     .from('regiment_members')
     .insert(memberRows)
 
-  if (memberErr) return err(memberErr.message, 500)
+  if (memberErr) {
+    // Someone in the crew is blocked by a faction rule: don't leave an empty Regiment behind
+    await service.from('regiments').delete().eq('id', regId)
+    const e = factionError(memberErr.message)
+    return err(e.message, e.status)
+  }
 
   // Mark the captain's finder profile as no longer looking
   await service
