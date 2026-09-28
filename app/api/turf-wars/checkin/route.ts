@@ -210,127 +210,39 @@ export async function POST(req: NextRequest) {
     }, 201)
   }
 
-  // 8. Update the claim's headcount counters
-  const incrementField = isAttacker
-    ? 'attacker_verified_headcount'
-    : 'defender_verified_headcount'
+  // 8. Refresh the live counts from the check-in records (Testing To-Do item 20). Check-ins no
+  //    longer decide the war: the referee (resolve_turf_war) scores it once, when the window closes.
+  await service.rpc('recount_turf_claim', { p_claim: body.claim_id })
+  const { data: fresh } = await service
+    .from('turf_claims')
+    .select('attacker_verified_headcount, defender_verified_headcount, attacker_weighted_headcount, defender_weighted_headcount, detected_at')
+    .eq('id', body.claim_id)
+    .single()
+  const f: any = fresh ?? {}
+  const newAttackerCount = Number(f.attacker_weighted_headcount ?? 0)
+  const newDefenderCount = Number(f.defender_weighted_headcount ?? 0)
 
-  const newAttackerCount = isAttacker
-    ? claimAny.attacker_verified_headcount + 1
-    : claimAny.attacker_verified_headcount
-  const newDefenderCount = isDefender
-    ? claimAny.defender_verified_headcount + 1
-    : claimAny.defender_verified_headcount
-
-  const updateData: Record<string, unknown> = {
-    [incrementField]: (isAttacker ? claimAny.attacker_verified_headcount : claimAny.defender_verified_headcount) + 1,
-  }
-
-  // 9. Sneak attack detection: if attacker reaches detection_threshold %, mark as detected
-  if (claimAny.claim_type === 'sneak_attack' && !claimAny.detected_at && isAttacker) {
+  // 9. Sneak attack detection: once the attacker reaches detection_threshold % of the required
+  //    headcount, the defender is alerted so they can rally before the window closes
+  if (claimAny.claim_type === 'sneak_attack' && !f.detected_at && isAttacker) {
     const detectionCount = Math.ceil(claimAny.required_headcount * (claimAny.detection_threshold / 100))
     if (newAttackerCount >= detectionCount) {
-      updateData.detected_at = now.toISOString()
-
-      // Log detection event — this is when the defending org gets alerted
-      const { data: bar } = await service
-        .from('venues')
-        .select('name')
-        .eq('id', body.bar_id)
-        .single()
-
-      const { data: org } = await service
-        .from('greek_orgs')
-        .select('name')
-        .eq('id', claimAny.attacking_org_id)
-        .single()
-
-      await service.from('turf_events').insert({
-        claim_id: body.claim_id,
-        event_type: 'sneak_attack_detected',
-        org_id: claimAny.attacking_org_id,
-        bar_id: body.bar_id,
-        headline: `Sneak attack detected at ${bar?.name ?? 'a bar'}`,
-        body: `${org?.name ?? 'An org'} has been detected attempting a sneak attack. Rally your members now!`,
-        deep_link: `/turf-wars/${body.claim_id}`,
-        visible_to: 'public',
-      })
-    }
-  }
-
-  // 10. Check if claim is resolved (attacker reached required headcount)
-  let claimResolved = false
-  let resultMessage: string | null = null
-
-  if (newAttackerCount >= claimAny.required_headcount) {
-    // Attacker wins — check if defender can still match
-    if (newDefenderCount < newAttackerCount) {
-      // Attacker has more — claim successful
-      claimResolved = true
-      resultMessage = 'Attacker reached required headcount with no successful defense.'
-      updateData.status = 'successful'
-      updateData.result = resultMessage
-
-      // Transfer turf
-      await service
-        .from('greek_orgs')
-        .update({
-          home_turf_bar_id: body.bar_id,
-          turf_claimed_at: now.toISOString(),
-          turf_streak_weeks: 1,
-          turf_wins: claimAny.attacking_org_id === userOrgId ? undefined : undefined, // will update below
-        })
-        .eq('id', claimAny.attacking_org_id)
-
-      // Clear turf from defender if they had it
-      if (claimAny.defending_org_id) {
-        await service
-          .from('greek_orgs')
-          .update({ home_turf_bar_id: null, turf_claimed_at: null, turf_streak_weeks: 0 })
-          .eq('id', claimAny.defending_org_id)
-      }
-
-      // Update war records
-      await service.rpc('increment_turf_win', { p_org_id: claimAny.attacking_org_id }).maybeSingle()
-      if (claimAny.defending_org_id) {
-        await service.rpc('increment_turf_loss', { p_org_id: claimAny.defending_org_id }).maybeSingle()
-      }
-    } else {
-      // Defender matched — contested
-      updateData.status = 'contested'
-      updateData.result = 'Both orgs reached headcount thresholds. Contest continues until window closes.'
-    }
-  }
-
-  // Also check if defender repelled (defender >= attacker and attacker hasn't reached threshold)
-  if (!claimResolved && claimAny.claim_type === 'sneak_attack' && claimAny.detected_at) {
-    if (newDefenderCount >= newAttackerCount && newAttackerCount > 0) {
-      // Check if rally window has passed
-      const detectedAt = new Date(claimAny.detected_at)
-      const rallyMinutes = claimAny.rally_window_minutes
-      const rallyEnd = new Date(detectedAt.getTime() + rallyMinutes * 60 * 1000)
-
-      if (now > rallyEnd || now > windowClose) {
-        // Defender repelled
-        claimResolved = true
-        resultMessage = 'Defender matched attacker headcount. Attack repelled.'
-        updateData.status = 'failed'
-        updateData.result = resultMessage
-
-        // Update sneak attack stats
-        await service.rpc('increment_sneak_attack_repelled', { p_org_id: claimAny.attacking_org_id }).maybeSingle()
-        if (claimAny.defending_org_id) {
-          await service.rpc('increment_sneak_attack_defended', { p_org_id: claimAny.defending_org_id }).maybeSingle()
-        }
-
-        // Log defense event
+      const { data: marked } = await service
+        .from('turf_claims')
+        .update({ detected_at: now.toISOString() })
+        .eq('id', body.claim_id)
+        .is('detected_at', null)
+        .select('id')
+      if ((marked as any[])?.length) {
+        const { data: bar } = await service.from('venues').select('name').eq('id', body.bar_id).single()
+        const { data: org } = await service.from('greek_orgs').select('name').eq('id', claimAny.attacking_org_id).single()
         await service.from('turf_events').insert({
           claim_id: body.claim_id,
-          event_type: 'turf_defended',
-          org_id: claimAny.defending_org_id,
+          event_type: 'sneak_attack_detected',
+          org_id: claimAny.attacking_org_id,
           bar_id: body.bar_id,
-          headline: 'Turf defended — sneak attack repelled',
-          body: resultMessage,
+          headline: `Sneak attack detected at ${bar?.name ?? 'a bar'}`,
+          body: `${org?.name ?? 'An org'} has been detected attempting a sneak attack. Rally your members now!`,
           deep_link: `/turf-wars/${body.claim_id}`,
           visible_to: 'public',
         })
@@ -338,19 +250,15 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await service
-    .from('turf_claims')
-    .update(updateData)
-    .eq('id', body.claim_id)
-
   return ok({
     ...checkin,
     is_attacker: isAttacker,
     attacker_headcount: newAttackerCount,
     defender_headcount: newDefenderCount,
     required_headcount: claimAny.required_headcount,
-    claim_resolved: claimResolved,
-    result: resultMessage,
+    claim_resolved: false,
+    result: null,
+    decided_at_window_close: true,
   }, 201)
 }
 

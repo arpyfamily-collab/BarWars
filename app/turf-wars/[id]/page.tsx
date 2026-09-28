@@ -17,6 +17,16 @@ interface ClaimDetail {
   detected_at: string | null
   rally_window_minutes: number
   result: string | null
+  attacking_org_id?: string
+  defending_org_id?: string | null
+  attacker_size?: number | null
+  defender_size?: number | null
+  attacker_weighted_headcount?: number | string | null
+  defender_weighted_headcount?: number | string | null
+  attacker_score?: number | string | null
+  defender_score?: number | string | null
+  winner_org_id?: string | null
+  underdog_bonus?: boolean
   attacking_org: { name: string; org_type: string }
   defending_org: { name: string; org_type: string } | null
   bar: { id: string; name: string }
@@ -279,8 +289,29 @@ export default function TurfBattlePage() {
               {minutesLeft}:{secondsLeft.toString().padStart(2, '0')}
             </div>
             <div style={{ fontSize: 12, color: 'var(--bw-muted)' }}>minutes remaining</div>
+            <div style={{ fontSize: 11, color: 'var(--bw-muted)', marginTop: 6, lineHeight: 1.5 }}>
+              Decided when the window closes: half headcount, half turnout (the share of your org that shows up).
+            </div>
           </div>
         )}
+
+        {isLive && (() => {
+          // Alliance prompt (item 20): the viewer's org is outnumbered 1.5x or more
+          const myOrg = memberships.find(m => m.verified)?.org_id
+          const aSize = claim.attacker_size ?? 0, dSize = claim.defender_size ?? 0
+          const mySize = myOrg === claim.attacking_org_id ? aSize : myOrg === claim.defending_org_id ? dSize : 0
+          const theirSize = myOrg === claim.attacking_org_id ? dSize : myOrg === claim.defending_org_id ? aSize : 0
+          if (!mySize || !theirSize || theirSize < 1.5 * mySize) return null
+          return (
+            <div className="card" style={{ borderLeft: '3px solid var(--bw-gold)' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Outnumbered? Form an alliance.</div>
+              <div style={{ fontSize: 12, color: 'var(--bw-muted)', lineHeight: 1.5, marginBottom: 10 }}>
+                They have {theirSize} members to your {mySize}. Turnout counts for half the score, and allies add to your headcount. Beat a bigger org and the win counts 1.5×.
+              </div>
+              <button className="btn btn-ghost" style={{ fontSize: 12 }} onClick={() => router.push('/turf-wars/allies')}>Invite allies</button>
+            </div>
+          )
+        })()}
 
         {isLive && !isOpen && (
           <div className="card" style={{ textAlign: 'center' }}>
@@ -296,9 +327,18 @@ export default function TurfBattlePage() {
 
         {!isLive && (
           <div className="card" style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 24, color: claim.status === 'successful' ? 'var(--bw-green)' : claim.status === 'failed' ? 'var(--bw-red)' : 'var(--bw-muted)' }}>
-              {claim.status === 'successful' ? 'Victory' : claim.status === 'failed' ? 'Defeat' : claim.status === 'contested' ? 'Contested' : claim.status === 'cancelled' ? 'Cancelled' : 'Pending'}
+            <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 24, color: claim.status === 'cancelled' ? 'var(--bw-muted)' : 'var(--bw-gold)' }}>
+              {claim.status === 'successful' ? `${claim.attacking_org?.name} took ${claim.bar?.name}`
+                : claim.status === 'failed' ? (claim.winner_org_id && claim.defending_org ? `${claim.defending_org.name} held ${claim.bar?.name}` : 'Attack fizzled')
+                : claim.status === 'cancelled' ? 'Cancelled' : 'Pending'}
             </div>
+            {claim.underdog_bonus && <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--bw-green)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 4 }}>Underdog win · 1.5× points</div>}
+            {claim.attacker_score != null && (
+              <div style={{ fontSize: 14, marginTop: 6 }}>
+                <span style={{ color: '#E03131', fontWeight: 700 }}>{Number(claim.attacker_score)}</span>
+                {claim.defender_score != null && <> <span style={{ color: 'var(--bw-muted)' }}>to</span> <span style={{ color: '#378ADD', fontWeight: 700 }}>{Number(claim.defender_score)}</span></>}
+              </div>
+            )}
             {claim.result && <div style={{ fontSize: 13, color: 'var(--bw-muted)', marginTop: 6 }}>{claim.result}</div>}
           </div>
         )}

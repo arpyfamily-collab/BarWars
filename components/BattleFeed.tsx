@@ -18,6 +18,9 @@ interface LeaderboardEntry {
   org_type: string
   war_score: number
   bars_held: number
+  wins?: number
+  losses?: number
+  size?: number
   rank: number
 }
 
@@ -185,26 +188,53 @@ function FeedTab() {
   )
 }
 
+const DIVISIONS: { key: string; label: string }[] = [
+  { key: '', label: 'All' },
+  { key: 'small', label: 'Small (<40)' },
+  { key: 'mid', label: 'Mid (40–99)' },
+  { key: 'large', label: 'Large (100+)' },
+]
+
 function StandingsTab() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [division, setDivision] = useState('')
 
   useEffect(() => {
-    fetch('/api/turf-wars/leaderboard')
+    setLoading(true)
+    fetch(`/api/turf-wars/leaderboard${division ? `?division=${division}` : ''}`)
       .then(r => r.json())
-      .then(d => { if (Array.isArray(d)) setEntries(d); setLoading(false) })
+      .then(d => { setEntries(Array.isArray(d) ? d : []); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [])
+  }, [division])
 
-  if (loading) return <div style={{ fontSize: 13, color: 'var(--bw-muted)', padding: '16px 0' }}>Loading standings…</div>
+  const tabs = (
+    <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+      {DIVISIONS.map(d => (
+        <button key={d.key} onClick={() => setDivision(d.key)}
+          style={{ fontSize: 11, padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
+            border: `1px solid ${division === d.key ? 'rgba(201,168,76,0.6)' : '#1A2030'}`,
+            background: division === d.key ? 'rgba(201,168,76,0.1)' : 'transparent',
+            color: division === d.key ? '#C9A84C' : 'var(--bw-muted)' }}>
+          {d.label}
+        </button>
+      ))}
+    </div>
+  )
 
-  const displayEntries = entries.length > 0 ? entries : DEMO_STANDINGS
-  const isDemo = entries.length === 0
+  if (loading) return <div>{tabs}<div style={{ fontSize: 13, color: 'var(--bw-muted)', padding: '16px 0' }}>Loading standings…</div></div>
+
+  const isDemo = entries.length === 0 && division === ''
+  const displayEntries = entries.length > 0 ? entries : isDemo ? DEMO_STANDINGS : []
 
   const rankColors: Record<number, string> = { 1: '#C9A84C', 2: '#8B9BB4', 3: '#CD7F32' }
 
   return (
     <div>
+      {tabs}
+      {!isDemo && displayEntries.length === 0 && (
+        <div style={{ fontSize: 12, color: 'var(--bw-muted)', textAlign: 'center', padding: '14px 0' }}>No orgs in this division yet.</div>
+      )}
       {isDemo && (
         <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--bw-violet-soft)', textAlign: 'center', marginBottom: 10, textTransform: 'uppercase' }}>
           Preview — live standings will appear here
@@ -234,7 +264,7 @@ function StandingsTab() {
               {entry.org_name}
             </div>
             <div style={{ fontSize: 11, color: 'var(--bw-muted)', marginTop: 2 }}>
-              {entry.bars_held} bar{entry.bars_held !== 1 ? 's' : ''} held
+              {entry.wins !== undefined ? `${entry.wins}W–${entry.losses ?? 0}L · ` : ''}{entry.bars_held ? 'holds a bar' : 'no bar held'}
             </div>
           </div>
 
@@ -253,7 +283,7 @@ function StandingsTab() {
       ))}
 
       <div style={{ fontSize: 10, color: '#2A3350', textAlign: 'center', paddingTop: 4 }}>
-        Rolling 7-day standings · Resets Monday midnight CT
+        1 pt per win · 1.5× for beating an org 1.5× your size · 0.8× on a 4+ week streak
       </div>
       </div>
     </div>

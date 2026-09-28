@@ -132,22 +132,15 @@ export async function POST(req: NextRequest) {
     return err(insertError.message, 500)
   }
 
-  // 8. Update the claim's weighted headcount counters
-  const currentWeighted = isAttacker
-    ? parseFloat(claimAny.attacker_weighted_headcount) || 0
-    : parseFloat(claimAny.defender_weighted_headcount) || 0
-  const newWeighted = currentWeighted + weight
-
-  // Also increment the integer headcount by 1 (for display — shows total bodies)
-  const currentInt = isAttacker
-    ? claimAny.attacker_verified_headcount
-    : claimAny.defender_verified_headcount
-  const newInt = currentInt + 1
-
-  const updateData: Record<string, unknown> = {
-    [isAttacker ? 'attacker_verified_headcount' : 'defender_verified_headcount']: newInt,
-    [isAttacker ? 'attacker_weighted_headcount' : 'defender_weighted_headcount']: newWeighted,
-  }
+  // 8. Refresh the live counts from the check-in records (Testing To-Do item 20). Allies count
+  //    at their weight; the referee (resolve_turf_war) decides the war when the window closes.
+  await service.rpc('recount_turf_claim', { p_claim: body.claim_id })
+  const { data: fresh } = await service
+    .from('turf_claims')
+    .select('attacker_verified_headcount, defender_verified_headcount, attacker_weighted_headcount, defender_weighted_headcount')
+    .eq('id', body.claim_id)
+    .single()
+  const f: any = fresh ?? {}
 
   // 9. Check if this is a rush event — if so, award Rush Credential
   const { data: rushEvent } = await service
@@ -166,62 +159,19 @@ export async function POST(req: NextRequest) {
       .eq('id', body.ally_id)
   }
 
-  // 10. Check if claim is resolved (using weighted headcount for attacker threshold)
-  let claimResolved = false
-  let resultMessage: string | null = null
-
-  if (isAttacker && newWeighted >= claimAny.required_headcount) {
-    const defenderWeighted = parseFloat(claimAny.defender_weighted_headcount) || 0
-    if (defenderWeighted < newWeighted) {
-      claimResolved = true
-      resultMessage = 'Attacker reached required headcount. Attack successful.'
-      updateData.status = 'successful'
-      updateData.result = resultMessage
-
-      // Transfer turf
-      await service
-        .from('greek_orgs')
-        .update({
-          home_turf_bar_id: body.bar_id,
-          turf_claimed_at: now.toISOString(),
-          turf_streak_weeks: 1,
-        })
-        .eq('id', claimAny.attacking_org_id)
-
-      if (claimAny.defending_org_id) {
-        await service
-          .from('greek_orgs')
-          .update({ home_turf_bar_id: null, turf_claimed_at: null, turf_streak_weeks: 0 })
-          .eq('id', claimAny.defending_org_id)
-      }
-
-      await service.rpc('increment_turf_win', { p_org_id: claimAny.attacking_org_id }).maybeSingle()
-      if (claimAny.defending_org_id) {
-        await service.rpc('increment_turf_loss', { p_org_id: claimAny.defending_org_id }).maybeSingle()
-      }
-    } else {
-      updateData.status = 'contested'
-      updateData.result = 'Both orgs reached headcount thresholds. Contest continues until window closes.'
-    }
-  }
-
-  await service
-    .from('turf_claims')
-    .update(updateData)
-    .eq('id', body.claim_id)
-
   return ok({
     ...checkin,
     is_attacker: isAttacker,
     headcount_weight: weight,
     rush_credential_earned: rushCredentialEarned,
-    attacker_headcount: newInt,
-    defender_headcount: isAttacker ? claimAny.defender_verified_headcount : newInt,
-    attacker_weighted: isAttacker ? newWeighted : parseFloat(claimAny.attacker_weighted_headcount),
-    defender_weighted: isAttacker ? parseFloat(claimAny.defender_weighted_headcount) : newWeighted,
+    attacker_headcount: f.attacker_verified_headcount ?? 0,
+    defender_headcount: f.defender_verified_headcount ?? 0,
+    attacker_weighted: Number(f.attacker_weighted_headcount ?? 0),
+    defender_weighted: Number(f.defender_weighted_headcount ?? 0),
     required_headcount: claimAny.required_headcount,
-    claim_resolved: claimResolved,
-    result: resultMessage,
+    claim_resolved: false,
+    result: null,
+    decided_at_window_close: true,
   }, 201)
 }
 

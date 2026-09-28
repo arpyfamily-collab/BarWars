@@ -88,52 +88,23 @@ export async function POST(req: NextRequest) {
     .update({ status: newStatus, reviewed_by: userId!, resolved_at: now })
     .eq('id', body.flagged_id)
 
-  if (body.action === 'reject') {
-    // Revert the headcount increment from this checkin
-    const f = flagged as any
-    const { data: checkin } = await service
-      .from('turf_checkins')
-      .select('claim_id, org_id, bar_id')
-      .eq('id', f.checkin_id)
-      .maybeSingle()
+  const f = flagged as any
+  const { data: checkin } = await service
+    .from('turf_checkins')
+    .select('claim_id')
+    .eq('id', f.checkin_id)
+    .maybeSingle()
+  const claimId = (checkin as any)?.claim_id
 
-    if (checkin) {
-      const c = checkin as any
-      // Decrement the headcount
-      const { data: claim } = await service
-        .from('turf_claims')
-        .select('attacker_org_id, defender_org_id, attacker_verified_headcount, defender_verified_headcount')
-        .eq('id', c.claim_id)
-        .maybeSingle()
-
-      if (claim) {
-        const cl = claim as any
-        if (cl.attacker_org_id === c.org_id) {
-          await service
-            .from('turf_claims')
-            .update({ attacker_verified_headcount: Math.max(0, cl.attacker_verified_headcount - 1) })
-            .eq('id', c.claim_id)
-        } else {
-          await service
-            .from('turf_claims')
-            .update({ defender_verified_headcount: Math.max(0, cl.defender_verified_headcount - 1) })
-            .eq('id', c.claim_id)
-        }
-      }
-
-      // Remove the checkin
-      await service
-        .from('turf_checkins')
-        .delete()
-        .eq('id', f.checkin_id)
-
-      // Flag the user's account
-      await service
-        .from('profiles')
-        .update({ account_status: 'flagged' })
-        .eq('id', f.user_id)
-    }
+  if (body.action === 'reject' && checkin) {
+    // Flagged check-ins never counted until approved, so there is nothing to subtract
+    // (the old code decremented a real person's check-in). Remove it and flag the account.
+    await service.from('turf_checkins').delete().eq('id', f.checkin_id)
+    await service.from('profiles').update({ account_status: 'flagged' }).eq('id', f.user_id)
   }
+
+  // Counts come from the check-in records; approval makes this one count (Testing To-Do item 20)
+  if (claimId) await service.rpc('recount_turf_claim', { p_claim: claimId })
 
   return ok({
     flagged_id: body.flagged_id,

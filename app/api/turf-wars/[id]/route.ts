@@ -21,6 +21,9 @@ export async function GET(
       required_headcount, attacker_verified_headcount, defender_verified_headcount,
       detection_threshold, detected_at, rally_window_minutes, lockout_days,
       cancel_reason, result, created_at,
+      attacking_org_id, defending_org_id, attacker_size, defender_size,
+      attacker_weighted_headcount, defender_weighted_headcount,
+      attacker_score, defender_score, winner_org_id, underdog_bonus, resolved_at,
       attacking_org:greek_orgs!attacking_org_id(name, org_type),
       defending_org:greek_orgs!defending_org_id(name, org_type),
       bar:venues(id, name)

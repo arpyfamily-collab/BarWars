@@ -1,66 +1,47 @@
+import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { ok } from '@/lib/challenges'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * GET /api/turf-wars/leaderboard
- * Public endpoint — returns orgs ranked by composite war score.
- * War score = turf_wins * 3 + wars_won * 5 + sneak_attacks_repelled * 2 + turf_streak_weeks * 2
- * bars_held = count of turf_claims with status 'successful' for that org
+ * GET /api/turf-wars/leaderboard[?division=small|mid|large]
+ * Orgs ranked by war points (Testing To-Do item 20): 1 per win, x1.5 for beating an org at least
+ * 1.5x your size (underdog), x0.8 while on a 4+ week streak. Awarded by the war referee.
+ * Divisions by verified size so every org has a title it can win: Small under 40, Mid 40-99, Large 100+.
  */
-export async function GET() {
+function divisionOf(size: number): 'small' | 'mid' | 'large' {
+  return size >= 100 ? 'large' : size >= 40 ? 'mid' : 'small'
+}
+
+export async function GET(req: NextRequest) {
   const service = createServiceClient()
+  const division = req.nextUrl.searchParams.get('division')
 
   const { data: orgs, error } = await service
     .from('greek_orgs')
-    .select(`
-      id, name, org_type,
-      turf_wins, turf_losses, turf_streak_weeks,
-      wars_won, wars_lost,
-      sneak_attacks_repelled,
-      home_turf_bar_id
-    `)
-    .order('turf_wins', { ascending: false })
-    .limit(20)
-
+    .select('id, name, org_type, verified_member_count, war_points, turf_wins, turf_losses, turf_streak_weeks, home_turf_bar_id')
+    .limit(500)
   if (error || !orgs) return ok([])
 
-  // Count bars held per org from turf_claims
-  const { data: claims } = await service
-    .from('turf_claims')
-    .select('attacking_org_id')
-    .eq('status', 'successful')
-
-  const barsHeldMap = new Map<string, number>()
-  for (const c of (claims ?? []) as any[]) {
-    const orgId = c.attacking_org_id
-    if (orgId) barsHeldMap.set(orgId, (barsHeldMap.get(orgId) ?? 0) + 1)
-  }
-
-  const mapped: Array<{
-    org_id: string; org_name: string; org_type: string;
-    war_score: number; bars_held: number; rank: number;
-  }> = (orgs as any[]).map(o => {
-    const warScore =
-      (o.turf_wins ?? 0) * 3 +
-      (o.wars_won ?? 0) * 5 +
-      (o.sneak_attacks_repelled ?? 0) * 2 +
-      (o.turf_streak_weeks ?? 0) * 2
-
-    return {
+  const rows = (orgs as any[])
+    .map(o => ({
       org_id: o.id,
       org_name: o.name,
       org_type: o.org_type,
-      war_score: warScore,
-      bars_held: barsHeldMap.get(o.id) ?? 0,
+      size: o.verified_member_count ?? 0,
+      division: divisionOf(o.verified_member_count ?? 0),
+      war_score: Number(o.war_points ?? 0),     // war points (kept as war_score for existing screens)
+      wins: o.turf_wins ?? 0,
+      losses: o.turf_losses ?? 0,
+      streak_weeks: o.turf_streak_weeks ?? 0,
+      bars_held: o.home_turf_bar_id ? 1 : 0,    // bars held right now
       rank: 0,
-    }
-  })
+    }))
+    .filter(r => !division || r.division === division)
+    .sort((a, b) => b.war_score - a.war_score || b.wins - a.wins || a.losses - b.losses)
+    .slice(0, 20)
 
-  // Sort by war_score descending and assign ranks
-  mapped.sort((a, b) => b.war_score - a.war_score)
-  mapped.forEach((entry, i) => { entry.rank = i + 1 })
-
-  return ok(mapped)
+  rows.forEach((r, i) => { r.rank = i + 1 })
+  return ok(rows)
 }
