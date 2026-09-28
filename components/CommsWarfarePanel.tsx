@@ -37,9 +37,10 @@ export default function CommsWarfarePanel({ claimId }: { claimId: string }) {
 
   if (!s) return null
   const canJam = s.jam_side && s.jams_left > 0
+  const canGag = s.sniper_side && s.jams_left > 0
   const canForge = s.is_mole && s.forgeries_left > 0
-  const frozen = s.blackout_until || s.attacker_frozen_until || s.defender_frozen_until || s.attacker_static_until || s.defender_static_until
-  if (!canJam && !s.is_leader && !canForge && !frozen) return null
+  const frozen = s.blackout_until || s.attacker_frozen_until || s.defender_frozen_until || s.attacker_static_until || s.defender_static_until || s.attacker_gagged_until || s.defender_gagged_until
+  if (!canJam && !s.sniper_side && !s.is_leader && !canForge && !frozen) return null
   const needsBar = ORDERS.find(o => o.id === tpl)?.bar
 
   const orderForm = (action: 'order' | 'forge', label: string) => (
@@ -67,6 +68,16 @@ export default function CommsWarfarePanel({ claimId }: { claimId: string }) {
 
       {!s.blackout_until && s.attacker_static_until && <div style={{ fontSize: 13, marginBottom: 6 }}>▒ Static on the attacker chat until {until(s.attacker_static_until)}.</div>}
       {!s.blackout_until && s.defender_static_until && <div style={{ fontSize: 13, marginBottom: 6 }}>▒ Static on the defender chat until {until(s.defender_static_until)}.</div>}
+      {s.attacker_gagged_until && <div style={{ fontSize: 13, marginBottom: 6 }}>🤐 Attacker leader&apos;s orders gagged until {until(s.attacker_gagged_until)}.</div>}
+      {s.defender_gagged_until && <div style={{ fontSize: 13, marginBottom: 6 }}>🤐 Defender leader&apos;s orders gagged until {until(s.defender_gagged_until)}.</div>}
+      {s.sniper_side && (
+        <div style={{ marginTop: 6 }}>
+          <div style={{ fontSize: 12, color: 'var(--bw-muted)', marginBottom: 6 }}>
+            🎯 Sniper: gag the {s.sniper_side === 'attacker' ? 'defender' : 'attacker'} leader&apos;s Command orders for 5 minutes. Their chat stays open. Uses your side&apos;s budget ({s.jams_left} left).
+          </div>
+          <button className="btn" style={{ fontSize: 12 }} disabled={busy || !canGag} onClick={() => act({ action: 'gag' })}>🤐 Gag Order</button>
+        </div>
+      )}
       {s.jam_side && (
         <div style={{ marginTop: 6 }}>
           <div style={{ fontSize: 12, color: 'var(--bw-muted)', marginBottom: 6 }}>
