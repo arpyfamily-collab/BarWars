@@ -31,7 +31,16 @@ async function call(path: string, form: Record<string, string>) {
 /** Text a code. Returns Twilio's status ('pending') or throws with Twilio's error code. */
 export async function sendCode(phoneE164: string) {
   const r = await call('Verifications', { To: phoneE164, Channel: 'sms' })
-  if (!r.ok) throw Object.assign(new Error(r.json?.message || 'Twilio error'), { code: r.json?.code, status: r.status })
+  if (!r.ok) {
+    // Diagnostics without secrets: Twilio's full error, the shape of each setting, the number masked
+    const shape = (v?: string) => v ? `${v.slice(0, 2)}…(${v.length})${/\s/.test(v) ? ' has-whitespace' : ''}` : 'missing'
+    console.error('twilio_verify_detail', {
+      twilio: r.json, to: phoneE164.replace(/\d(?=\d{4})/g, '•'),
+      service: shape(process.env.TWILIO_VERIFY_SERVICE_SID), key: shape(process.env.TWILIO_API_KEY_SID),
+      secretLen: (process.env.TWILIO_API_KEY_SECRET ?? '').length, account: shape(process.env.TWILIO_ACCOUNT_SID),
+    })
+    throw Object.assign(new Error(r.json?.message || 'Twilio error'), { code: r.json?.code, status: r.status })
+  }
   return r.json?.status as string
 }
 
