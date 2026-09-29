@@ -2,7 +2,6 @@
 
 import { Capacitor } from '@capacitor/core'
 import { PushNotifications, Token } from '@capacitor/push-notifications'
-import { createClient } from '@/lib/supabase-client'
 
 export async function initPushNotifications() {
   if (!Capacitor.isNativePlatform()) {
@@ -15,8 +14,7 @@ export async function initPushNotifications() {
       return null
     }
 
-    await PushNotifications.register()
-
+    // Listeners first: the token can arrive as soon as register() is called
     await PushNotifications.addListener('registration', (token: Token) => {
       savePushToken(token.value)
     })
@@ -30,12 +28,15 @@ export async function initPushNotifications() {
     })
 
     await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-      const data = action.notification.data
-      if (data?.type === 'rally') window.location.href = '/comms'
-      else if (data?.type === 'shots_fired') window.location.href = '/turf-wars'
-      else if (data?.type === 'bracelet_drop') window.location.href = '/bracelet-hunt'
-      else if (data?.type === 'flare') window.location.href = '/'
+      const data: any = action.notification.data ?? {}
+      if (typeof data.url === 'string' && data.url.startsWith('/')) { window.location.href = data.url; return }
+      if (data.type === 'rally') window.location.href = '/comms'
+      else if (data.type === 'shots_fired') window.location.href = '/turf-wars'
+      else if (data.type === 'bracelet_drop') window.location.href = '/bracelet-hunt'
+      else if (data.type === 'flare') window.location.href = '/'
     })
+
+    await PushNotifications.register()
 
     return true
   } catch (err) {
@@ -44,18 +45,13 @@ export async function initPushNotifications() {
   }
 }
 
+// iPhone: an Apple device token (sent straight through Apple); Android: a Firebase token
 async function savePushToken(token: string) {
   try {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    await supabase.from('user_push_tokens').upsert({
-      user_id: user.id,
-      token,
-      platform: Capacitor.getPlatform(),
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id,platform' })
+    await fetch('/api/push/register', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ token, platform: Capacitor.getPlatform() }),
+    })
   } catch (err) {
     console.error('[push] failed to save token', err)
   }

@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { sendPush } from '@/lib/push'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth, ok, err } from '@/lib/challenges'
 
@@ -141,41 +142,9 @@ export async function PATCH(
         .eq('verified', true)
 
       const memberIds = (members ?? []).map((m: any) => m.user_id)
-      if (memberIds.length > 0) {
-        const { data: tokenRows } = await service
-          .from('user_push_tokens')
-          .select('fcm_token')
-          .in('user_id', memberIds)
-          .not('fcm_token', 'is', null)
-
-        const tokens = (tokenRows ?? []).map((r: any) => r.fcm_token as string)
-        if (tokens.length > 0) {
-          const fcmKey = process.env.FCM_SERVER_KEY
-          if (fcmKey) {
-            try {
-              await fetch('https://fcm.googleapis.com/fcm/send', {
-                method: 'POST',
-                headers: {
-                  'Authorization': `key=${fcmKey}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  registration_ids: tokens.slice(0, 500),
-                  notification: {
-                    title: `Shots fired at ${barName}`,
-                    body: `${orgName} is coming. Rally your people now.`,
-                  },
-                  data: { deep_link: '/turf-wars', source: 'barwars_shots_fired' },
-                  android: { priority: 'high' },
-                  apns: { headers: { 'apns-priority': '10' } },
-                }),
-              })
-            } catch (e) {
-              console.error('[shots-fired] FCM error:', e)
-            }
-          }
-        }
-      }
+      try {
+        await sendPush(memberIds, { title: `Shots fired at ${barName}`, body: `${orgName} is coming. Rally your people now.`, data: { type: 'shots_fired', url: '/turf-wars' } })
+      } catch (e) { console.error('[shots-fired] push error:', e) }
     }
 
     // Send advance notice push to bar admin(s)
@@ -185,41 +154,13 @@ export async function PATCH(
       .eq('bar_id', (shot as any).bar_id)
 
     const adminIds = (barAdmins ?? []).map((a: any) => a.user_id)
-    if (adminIds.length > 0) {
-      const { data: adminTokens } = await service
-        .from('user_push_tokens')
-        .select('fcm_token')
-        .in('user_id', adminIds)
-        .not('fcm_token', 'is', null)
-
-      const adminPushTokens = (adminTokens ?? []).map((r: any) => r.fcm_token as string)
-      if (adminPushTokens.length > 0) {
-        const fcmKey = process.env.FCM_SERVER_KEY
-        if (fcmKey) {
-          try {
-            await fetch('https://fcm.googleapis.com/fcm/send', {
-              method: 'POST',
-              headers: {
-                'Authorization': `key=${fcmKey}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                registration_ids: adminPushTokens.slice(0, 500),
-                notification: {
-                  title: `Shots confirmed at ${barName}`,
-                  body: `${orgName} has declared a potential sneak attack. Earliest window: ${windowOpens.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}. Expect elevated traffic.`,
-                },
-                data: { deep_link: '/dashboard/turf', source: 'barwars_shots_confirmed' },
-                android: { priority: 'high' },
-                apns: { headers: { 'apns-priority': '10' } },
-              }),
-            })
-          } catch (e) {
-            console.error('[shots-fired] bar admin FCM error:', e)
-          }
-        }
-      }
-    }
+    try {
+      await sendPush(adminIds, {
+        title: `Shots confirmed at ${barName}`,
+        body: `${orgName} has declared a potential sneak attack. Earliest window: ${windowOpens.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' })}. Expect elevated traffic.`,
+        data: { type: 'bar_admin', url: '/bar-admin' },
+      })
+    } catch (e) { console.error('[shots-fired] bar admin push error:', e) }
 
     return ok({
       id: params.id,

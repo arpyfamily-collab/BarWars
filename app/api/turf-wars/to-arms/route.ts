@@ -1,3 +1,4 @@
+import { sendPush } from '@/lib/push'
 import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth, ok, err } from '@/lib/challenges'
@@ -96,14 +97,6 @@ export async function POST(req: NextRequest) {
   const memberIds = (members ?? []).map((m: any) => m.user_id)
   if (memberIds.length === 0) return err('No verified members to notify', 422)
 
-  const { data: tokenRows } = await service
-    .from('user_push_tokens')
-    .select('fcm_token')
-    .in('user_id', memberIds)
-    .not('fcm_token', 'is', null)
-
-  const tokens = (tokenRows ?? []).map((r: any) => r.fcm_token as string)
-
   const orgName = (shot as any).org?.name ?? 'An org'
   const barName = (shot as any).bar?.name ?? 'a bar'
   const hoursUntilWindow = Math.max(1, Math.ceil((windowOpens.getTime() - now.getTime()) / (60 * 60 * 1000)))
@@ -117,30 +110,10 @@ export async function POST(req: NextRequest) {
     : `${orgName} fired shots at ${barName}. We defend tonight — who's riding?`
 
   let pushed = 0
-  if (tokens.length > 0) {
-    const fcmKey = process.env.FCM_SERVER_KEY
-    if (fcmKey) {
-      try {
-        const fcmRes = await fetch('https://fcm.googleapis.com/fcm/send', {
-          method: 'POST',
-          headers: {
-            'Authorization': `key=${fcmKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            registration_ids: tokens.slice(0, 500),
-            notification: { title, body: pushBody },
-            data: { deep_link: '/turf-wars', source: 'barwars_to_arms' },
-            android: { priority: 'high' },
-            apns: { headers: { 'apns-priority': '10' } },
-          }),
-        })
-        if (fcmRes.ok) pushed = tokens.length
-      } catch (e) {
-        console.error('[to-arms] FCM error:', e)
-      }
-    }
-  }
+  try {
+    const r = await sendPush(memberIds, { title, body: pushBody, data: { type: 'shots_fired', url: '/turf-wars' } })
+    pushed = r.sent
+  } catch (e) { console.error('[to-arms] push error:', e) }
 
   // Mark the To Arms as sent
   const updateField = body.side === 'attacker' ? { attacker_to_arms_at: now.toISOString() } : { defender_to_arms_at: now.toISOString() }

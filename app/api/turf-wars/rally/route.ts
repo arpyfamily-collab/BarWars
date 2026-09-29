@@ -1,3 +1,4 @@
+import { sendPush } from '@/lib/push'
 import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth, ok, err } from '@/lib/challenges'
@@ -75,51 +76,11 @@ export async function POST(req: NextRequest) {
     return ok({ rallied: 0, message: 'No verified members to rally' })
   }
 
-  // Fetch FCM tokens for members
-  const { data: tokenRows } = await service
-    .from('user_push_tokens')
-    .select('fcm_token')
-    .in('user_id', memberIds)
-    .not('fcm_token', 'is', null)
-
-  const tokens = (tokenRows ?? []).map((r: any) => r.fcm_token as string)
-
   let sentCount = 0
-  if (tokens.length > 0) {
-    const fcmKey = process.env.FCM_SERVER_KEY
-    if (fcmKey) {
-      try {
-        const res = await fetch('https://fcm.googleapis.com/fcm/send', {
-          method: 'POST',
-          headers: {
-            'Authorization': `key=${fcmKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            registration_ids: tokens.slice(0, 500),
-            notification: {
-              title: `Rally at ${barName}`,
-              body: message,
-            },
-            data: {
-              deep_link: body.claim_id ? `/turf-wars/${body.claim_id}` : '/turf-wars',
-              source: 'barwars_turf_rally',
-            },
-            android: { priority: 'high' },
-            apns: { headers: { 'apns-priority': '10' } },
-          }),
-        })
-        const result = await res.json()
-        sentCount = result.success ?? 0
-      } catch (e) {
-        console.error('[turf-rally] FCM error:', e)
-      }
-    } else {
-      // No FCM key — log for pipeline continuity
-      console.log(`[turf-rally] No FCM_SERVER_KEY — would send to ${tokens.length} tokens`)
-      sentCount = tokens.length
-    }
-  }
+  try {
+    const r = await sendPush(memberIds, { title: `Rally at ${barName}`, body: message, data: { type: 'rally', url: body.claim_id ? `/turf-wars/${body.claim_id}` : '/turf-wars' } })
+    sentCount = r.sent
+  } catch (e) { console.error('[turf-rally] push error:', e) }
 
   return ok({ rallied: memberIds.length, push_sent: sentCount, message })
 }
