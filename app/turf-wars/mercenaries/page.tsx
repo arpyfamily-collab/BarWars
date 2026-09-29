@@ -81,6 +81,14 @@ const ROLE_REWARDS: Record<string, number> = {
   distraction: 15,
 }
 
+// Item 14: what a bracelet payment is, shown in full before a mercenary accepts
+function paymentLine(p: any): string | null {
+  if (!p) return null
+  const offer = p.offer_type === 'no_cover' ? 'No cover' : (p.offer_value ?? 'Offer')
+  const night = p.valid_night ? new Date(`${p.valid_night}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'any night'
+  return `🎁 + bracelet: ${offer} at ${p.venue?.name ?? 'the bar'}, good ${night}${p.valid_nights > 1 ? ` (+${p.valid_nights - 1} night${p.valid_nights > 2 ? 's' : ''})` : ''}. Paid when the hirer confirms the job; 18+ only.`
+}
+
 export default function MercenariesPage() {
   const [tab, setTab] = useState<Tab>('exchange')
   const [loading, setLoading] = useState(true)
@@ -105,13 +113,22 @@ export default function MercenariesPage() {
   const [hireMercId, setHireMercId] = useState('')
   const [hireRole, setHireRole] = useState('headcount_filler')
   const [hireDecoyBar, setHireDecoyBar] = useState('')
+  const [hireBracelet, setHireBracelet] = useState('')
+  const [payable, setPayable] = useState<any[]>([])
+  const [issued, setIssued] = useState<any[]>([])
   const [sniperTargetId, setSniperTargetId] = useState('')
   const [sniperHireId, setSniperHireId] = useState('')
   const [scorchedBarId, setScorchedBarId] = useState('')
   const [scorchedDate, setScorchedDate] = useState('')
   const [scorchedSide, setScorchedSide] = useState('self')
 
+  async function loadPayments() {
+    fetch('/api/bracelets').then(r => r.ok ? r.json() : null).then(d => d && setPayable((d.bracelets ?? []).filter((b: any) => b.payable))).catch(() => {})
+    fetch('/api/turf-wars/mercenaries?issued=true').then(r => r.ok ? r.json() : null).then(d => d && setIssued(d.contracts ?? [])).catch(() => {})
+  }
+
   async function loadAll() {
+    loadPayments()
     try {
       const [mineRes, exchRes, sniperRes, scorchedRes, myScorchedRes] = await Promise.all([
         fetch('/api/turf-wars/mercenaries?mine=true'),
@@ -215,12 +232,15 @@ export default function MercenariesPage() {
           mercenary_id: hireMercId,
           role: hireRole,
           distraction_decoy_bar_id: hireRole === 'distraction' ? hireDecoyBar : undefined,
+          payment_bracelet_id: hireBracelet || undefined,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setResult(data.message)
       setHireMercId('')
+      setHireBracelet('')
+      loadPayments()
       loadAll()
     } catch (e: any) { setResult(e.message) }
     finally { setActionLoading(null) }
@@ -400,6 +420,7 @@ export default function MercenariesPage() {
                           </div>
                           <div style={{ fontSize: 11, color: 'var(--bw-muted)', marginBottom: 8 }}>
                             From: {c.org?.name ?? c.company?.name ?? 'Unknown'}
+                            {paymentLine((c as any).payment) && <div style={{ color: 'var(--bw-gold)', marginTop: 4 }}>{paymentLine((c as any).payment)}</div>}
                           </div>
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button className="btn btn-ghost" style={{ flex: 1, fontSize: 12, borderColor: 'rgba(46,204,113,0.3)', color: 'var(--bw-green)' }}
@@ -432,15 +453,13 @@ export default function MercenariesPage() {
                           </div>
                           <div style={{ fontSize: 11, color: 'var(--bw-muted)', marginBottom: 8 }}>
                             From: {c.org?.name ?? c.company?.name ?? 'Unknown'}
+                            {paymentLine((c as any).payment) && <div style={{ color: 'var(--bw-gold)', marginTop: 4 }}>{paymentLine((c as any).payment)}</div>}
                           </div>
                           <div style={{ display: 'flex', gap: 6 }}>
-                            <button className="btn btn-ghost" style={{ flex: 1, fontSize: 12, borderColor: 'rgba(46,204,113,0.3)', color: 'var(--bw-green)' }}
-                              onClick={() => completeContract(c.id, true)} disabled={actionLoading === `complete_${c.id}`}>
-                              <Trophy size={12} /> Mark Complete
-                            </button>
-                            <button className="btn btn-ghost" style={{ flex: 1, fontSize: 12, borderColor: 'rgba(224,49,49,0.3)', color: 'var(--bw-red)' }}
-                              onClick={() => completeContract(c.id, false)} disabled={actionLoading === `complete_${c.id}`}>
-                              <X size={12} /> Mark Failed
+                            <div style={{ flex: 1, fontSize: 11, color: 'var(--bw-muted)', alignSelf: 'center' }}>Your hirer confirms when the job is done.</div>
+                            <button className="btn btn-ghost" style={{ fontSize: 12, borderColor: 'rgba(224,49,49,0.3)', color: 'var(--bw-red)' }}
+                              onClick={() => { if (confirm('Withdraw from this contract? It counts as failed and nothing is paid.')) completeContract(c.id, false) }} disabled={actionLoading === `complete_${c.id}`}>
+                              <X size={12} /> Withdraw
                             </button>
                           </div>
                         </div>
@@ -504,9 +523,48 @@ export default function MercenariesPage() {
                     <input className="input" value={hireDecoyBar} onChange={e => setHireDecoyBar(e.target.value)} placeholder="Bar ID to use as decoy" style={{ marginTop: 6 }} />
                   </div>
                 )}
+                {payable.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 12, fontWeight: 600 }}>Also pay with a bracelet (optional)</label>
+                    <select className="input" value={hireBracelet} onChange={e => setHireBracelet(e.target.value)} style={{ marginTop: 6 }}>
+                      <option value="">No bracelet</option>
+                      {payable.map(b => <option key={b.id} value={b.id}>{b.offer_type === 'no_cover' ? 'No cover' : (b.offer_value ?? 'Offer')} · {b.bar} · {b.valid_night ?? 'any night'}</option>)}
+                    </select>
+                    <div style={{ fontSize: 11, color: 'var(--bw-muted)', marginTop: 4 }}>Held until you confirm the job is done. Only no-cover and non-alcoholic bracelets you found yourself can be paid.</div>
+                  </div>
+                )}
                 <button className="btn btn-primary" onClick={hireMerc} disabled={actionLoading === 'hire'}>
                   <Send size={16} /> {actionLoading === 'hire' ? 'Sending…' : 'Offer Contract'}
                 </button>
+              </div>
+            )}
+
+            {issued.length > 0 && (
+              <div className="card">
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--bw-muted)', marginBottom: 10 }}>Contracts you issued</div>
+                <div className="stack stack-sm">
+                  {issued.map(c => (
+                    <div key={c.id} style={{ background: 'var(--bw-surface)', borderRadius: 8, padding: '10px 12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontWeight: 600, fontSize: 13 }}>{ROLE_LABELS[c.role]}</span>
+                        <span style={{ fontSize: 11, color: 'var(--bw-muted)' }}>{c.status}</span>
+                      </div>
+                      {paymentLine(c.payment) && <div style={{ fontSize: 11, color: 'var(--bw-gold)', marginBottom: 6 }}>{paymentLine(c.payment)}</div>}
+                      {c.status === 'accepted' && (
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button className="btn btn-ghost" style={{ flex: 1, fontSize: 12, borderColor: 'rgba(46,204,113,0.3)', color: 'var(--bw-green)' }}
+                            onClick={() => { completeContract(c.id, true).then(loadPayments) }} disabled={actionLoading === `complete_${c.id}`}>
+                            <Trophy size={12} /> Job done: pay
+                          </button>
+                          <button className="btn btn-ghost" style={{ flex: 1, fontSize: 12, borderColor: 'rgba(224,49,49,0.3)', color: 'var(--bw-red)' }}
+                            onClick={() => { completeContract(c.id, false).then(loadPayments) }} disabled={actionLoading === `complete_${c.id}`}>
+                            <X size={12} /> Not done
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </>
@@ -526,6 +584,22 @@ export default function MercenariesPage() {
             </div>
 
             {/* Sniper contracts as sniper */}
+{(sniperContracts as any).asHirer?.length > 0 && (
+  <div className="card">
+    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--bw-muted)', marginBottom: 10 }}>Sniper jobs you hired</div>
+    {(sniperContracts as any).asHirer.map((c: any) => (
+      <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', fontSize: 12 }}>
+        <span style={{ flex: 1 }}>Sniper contract · {c.status}</span>
+        {c.status === 'active' && (
+          <button className="btn btn-ghost" style={{ fontSize: 11, borderColor: 'rgba(46,204,113,0.3)', color: 'var(--bw-green)' }}
+            onClick={() => sniperAction(c.id, 'succeed')} disabled={actionLoading === `sniper_${c.id}`}>
+            <Trophy size={12} /> Confirm success
+          </button>
+        )}
+      </div>
+    ))}
+  </div>
+)}
             {sniperContracts.asSniper.length > 0 && (
               <div className="card">
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#E03131', marginBottom: 10 }}>
@@ -546,10 +620,7 @@ export default function MercenariesPage() {
                       )}
                       {c.status === 'active' && (
                         <div style={{ display: 'flex', gap: 6 }}>
-                          <button className="btn btn-ghost" style={{ flex: 1, fontSize: 11, borderColor: 'rgba(46,204,113,0.3)', color: 'var(--bw-green)' }}
-                            onClick={() => sniperAction(c.id, 'succeed')} disabled={actionLoading === `sniper_${c.id}`}>
-                            <Trophy size={12} /> Mission Success
-                          </button>
+                          <div style={{ flex: 1, fontSize: 11, color: 'var(--bw-muted)', alignSelf: 'center' }}>Your hirer confirms success.</div>
                           <button className="btn btn-ghost" style={{ flex: 1, fontSize: 11, borderColor: 'rgba(224,49,49,0.3)', color: 'var(--bw-red)' }}
                             onClick={() => sniperAction(c.id, 'fail')} disabled={actionLoading === `sniper_${c.id}`}>
                             <X size={12} /> Mission Failed

@@ -68,7 +68,24 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(10)
 
-  return ok({ asSniper, asTarget: (asTarget as any[]) ?? [], isSniper: (myMerc as any)?.is_sniper ?? false })
+  // Sniper jobs this player hired (as an org leader or Hessian captain): the hirer confirms success
+  const { data: mems } = await service.from('org_memberships').select('org_id').eq('user_id', userId!).eq('verified', true)
+  const ledOrgs: string[] = []
+  for (const r of (mems as any[]) ?? []) {
+    const { data: lead } = await service.rpc('is_org_leader', { p_org: r.org_id, p_user: userId })
+    if (lead) ledOrgs.push(r.org_id)
+  }
+  const { data: comps } = await service.from('hessian_companies').select('id').eq('captain_id', userId!)
+  const compIds = ((comps as any[]) ?? []).map(c => c.id)
+  let asHirer: any[] = []
+  if (ledOrgs.length || compIds.length) {
+    const filters = [ledOrgs.length ? `hirer_org_id.in.(${ledOrgs.join(',')})` : '', compIds.length ? `hirer_company_id.in.(${compIds.join(',')})` : ''].filter(Boolean).join(',')
+    const { data } = await service.from('sniper_contracts').select('id, status, tactics_used, created_at, resolved_at')
+      .or(filters).order('created_at', { ascending: false }).limit(20)
+    asHirer = (data as any[]) ?? []
+  }
+
+  return ok({ asSniper, asTarget: (asTarget as any[]) ?? [], asHirer, isSniper: (myMerc as any)?.is_sniper ?? false })
 }
 
 /**
@@ -95,23 +112,37 @@ export async function POST(req: NextRequest) {
   if (body.contract_id && body.action) {
     const { data: contract } = await service
       .from('sniper_contracts')
-      .select('id, status, sniper_id')
+      .select('id, status, sniper_id, hirer_org_id, hirer_company_id, tactics_used')
       .eq('id', body.contract_id)
       .maybeSingle()
 
     if (!contract) return err('Contract not found', 404)
     const c = contract as any
 
-    // Verify caller is the sniper
+    // The sniper activates or fails the job; only the hirer confirms success (Sep 29: snipers could
+    // mark their own contract successful and pay themselves 20 War Bonds)
     const { data: merc } = await service
       .from('mercenaries')
-      .select('id, war_bonds, contracts_completed')
-      .eq('user_id', userId!)
+      .select('id, user_id, war_bonds, contracts_completed')
+      .eq('id', c.sniper_id)
       .maybeSingle()
-    if (!merc || (merc as any).id !== c.sniper_id) return err('Only the sniper can update this', 403)
+    const m = merc as any
+    const isSniper = m?.user_id === userId
+    let isHirer = false
+    if (c.hirer_org_id) {
+      const { data: lead } = await service.rpc('is_org_leader', { p_org: c.hirer_org_id, p_user: userId })
+      isHirer = !!lead
+    }
+    if (!isHirer && c.hirer_company_id) {
+      const { data: comp } = await service.from('hessian_companies').select('captain_id').eq('id', c.hirer_company_id).maybeSingle()
+      isHirer = (comp as any)?.captain_id === userId
+    }
+    if (body.action === 'succeed' ? !isHirer : !isSniper) {
+      return err(body.action === 'succeed' ? 'Only the hirer can confirm a sniper job succeeded.' : 'Only the sniper can update this', 403)
+    }
+    if (body.action === 'succeed' && c.status !== 'active') return err('The sniper has to activate the contract first', 409)
 
     const now = new Date().toISOString()
-    const m = merc as any
 
     if (body.action === 'activate') {
       if (c.status !== 'pending') return err('Contract must be pending', 409)
@@ -137,7 +168,7 @@ export async function POST(req: NextRequest) {
 
       await service
         .from('war_bond_ledger')
-        .insert({ user_id: userId!, amount: reward, reason: 'sniper_success', reference_id: c.id })
+        .insert({ user_id: m.user_id, amount: reward, reason: 'sniper_success', reference_id: c.id })
 
       return ok({ id: body.contract_id, status: 'successful', war_bonds_earned: reward })
     }
@@ -198,7 +229,12 @@ export async function POST(req: NextRequest) {
     .eq('captain_id', userId!)
     .maybeSingle()
 
-  if (!membership && !company) return err('You must be an org leader or Hessian Captain to hire a sniper', 403)
+  let isLeader = false
+  if (membership) {
+    const { data: lead } = await service.rpc('is_org_leader', { p_org: (membership as any).org_id, p_user: userId })
+    isLeader = !!lead
+  }
+  if (!isLeader && !company) return err('You must be an org leader or Hessian Captain to hire a sniper', 403)
 
   const { data, error } = await service
     .from('sniper_contracts')

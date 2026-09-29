@@ -19,6 +19,17 @@ export async function GET(req: NextRequest) {
 
   const service = createServiceClient()
 
+  // Contracts this player issued as a hirer (item 14: the hirer confirms completion)
+  if (searchParams.get('issued') === 'true') {
+    const { data: issued } = await service
+      .from('mercenary_contracts')
+      .select(`id, role, status, war_bond_reward, created_at, resolved_at, claim_id, payment:bracelet_drops!mercenary_contracts_payment_bracelet_id_fkey(offer_type, offer_value, valid_night, valid_nights, venue:venues!bracelet_drops_venue_id_fkey(name))`)
+      .eq('hired_by', userId!)
+      .order('created_at', { ascending: false })
+      .limit(20)
+    return ok({ contracts: (issued as any[]) ?? [] })
+  }
+
   if (mine) {
     const { data: profile } = await service
       .from('mercenaries')
@@ -34,7 +45,8 @@ export async function GET(req: NextRequest) {
         id, role, status, war_bond_reward, created_at, resolved_at,
         distraction_decoy_bar_id,
         org:greek_orgs(name),
-        company:hessian_companies(name)
+        company:hessian_companies(name),
+        payment:bracelet_drops!mercenary_contracts_payment_bracelet_id_fkey(offer_type, offer_value, valid_night, valid_nights, venue:venues!bracelet_drops_venue_id_fkey(name))
       `)
       .eq('mercenary_id', (profile as any).id)
       .order('created_at', { ascending: false })
@@ -181,10 +193,16 @@ export async function POST(req: NextRequest) {
     if (!merc || (merc as any).id !== c.mercenary_id) return err('Only the mercenary can respond', 403)
 
     if (body.response === 'accept') {
-      await service
+      const { error: accErr } = await service
         .from('mercenary_contracts')
         .update({ status: 'accepted' })
         .eq('id', body.contract_id)
+      if (accErr) {
+        if (accErr.message.includes('PAYMENT_RECIPIENT_18')) return err('You must be 18 or older to be paid in a bracelet.', 403)
+        if (accErr.message.includes('PAYMENT_EXPIRED')) return err("The bracelet offered as payment has expired. Ask the hirer to re-offer the job.", 409)
+        if (accErr.message.includes('EDU_REQUIRED')) return err('Verify your Ole Miss email to take this contract.', 403)
+        return err('Could not accept the contract.', 500)
+      }
       return ok({ id: body.contract_id, status: 'accepted' })
     }
     if (body.response === 'reject') {
@@ -198,66 +216,55 @@ export async function POST(req: NextRequest) {
   }
 
   // ─── Complete contract ──────────────────────────────────────────────────────
+  // Item 14 (Sep 29): the hirer confirms the job, never the mercenary. Before this, a mercenary marked
+  // their own contract successful and paid themselves; with bracelet payments that would hand over the
+  // bracelet for nothing. The mercenary can only withdraw (the contract fails, nothing is paid).
   if (body.action === 'complete' && body.contract_id) {
     const { data: contract } = await service
       .from('mercenary_contracts')
-      .select('id, status, mercenary_id, role, war_bond_reward, hirer_org_id, hirer_company_id')
+      .select('id, status, mercenary_id, role, war_bond_reward, hirer_org_id, hirer_company_id, hired_by')
       .eq('id', body.contract_id)
       .maybeSingle()
-
     if (!contract) return err('Contract not found', 404)
     const c = contract as any
     if (c.status !== 'accepted') return err('Contract must be accepted first', 409)
 
-    // Verify caller is the mercenary
-    const { data: merc } = await service
-      .from('mercenaries')
-      .select('id, contracts_completed, contracts_failed, war_bonds')
-      .eq('user_id', userId!)
-      .maybeSingle()
-    if (!merc || (merc as any).id !== c.mercenary_id) return err('Only the mercenary can complete this', 403)
-
-    const now = new Date().toISOString()
-    const success = !!body.success
+    const { data: merc } = await service.from('mercenaries')
+      .select('id, user_id, contracts_completed, contracts_failed, war_bonds').eq('id', c.mercenary_id).maybeSingle()
     const m = merc as any
-
-    await service
-      .from('mercenary_contracts')
-      .update({ status: success ? 'completed' : 'failed', resolved_at: now })
-      .eq('id', body.contract_id)
-
-    // Update mercenary stats
-    const newCompleted = success ? m.contracts_completed + 1 : m.contracts_completed
-    const newFailed = success ? m.contracts_failed : m.contracts_failed + 1
-    const newBonds = success ? m.war_bonds + c.war_bond_reward : m.war_bonds
-
-    await service
-      .from('mercenaries')
-      .update({
-        contracts_completed: newCompleted,
-        contracts_failed: newFailed,
-        war_bonds: newBonds,
-      })
-      .eq('id', m.id)
-
-    // Award war bonds via ledger
-    if (success) {
-      await service
-        .from('war_bond_ledger')
-        .insert({
-          user_id: userId!,
-          amount: c.war_bond_reward,
-          reason: c.role === 'distraction' ? 'distraction_success' : 'contract_completed',
-          reference_id: c.id,
-        })
+    const isMercenary = m?.user_id === userId
+    let isHirer = c.hired_by === userId
+    if (!isHirer && c.hirer_org_id) {
+      const { data: lead } = await service.rpc('is_org_leader', { p_org: c.hirer_org_id, p_user: userId })
+      isHirer = !!lead
+    }
+    if (!isHirer && c.hirer_company_id) {
+      const { data: comp } = await service.from('hessian_companies').select('captain_id').eq('id', c.hirer_company_id).maybeSingle()
+      isHirer = (comp as any)?.captain_id === userId
+    }
+    const success = !!body.success
+    if (!isHirer && !(isMercenary && !success)) {
+      return err(isMercenary ? 'Your hirer confirms the job is done. You can only withdraw.' : 'Only the hirer can complete this contract.', 403)
     }
 
-    return ok({
-      id: body.contract_id,
-      status: success ? 'completed' : 'failed',
-      war_bonds_earned: success ? c.war_bond_reward : 0,
-      total_war_bonds: newBonds,
-    })
+    const now = new Date().toISOString()
+    const { error: upErr } = await service.from('mercenary_contracts')
+      .update({ status: success ? 'completed' : 'failed', resolved_at: now }).eq('id', body.contract_id)
+    if (upErr) return err('Could not update the contract.', 500)
+
+    const newBonds = success ? m.war_bonds + c.war_bond_reward : m.war_bonds
+    await service.from('mercenaries').update({
+      contracts_completed: success ? m.contracts_completed + 1 : m.contracts_completed,
+      contracts_failed: success ? m.contracts_failed : m.contracts_failed + 1,
+      war_bonds: newBonds,
+    }).eq('id', m.id)
+    if (success) {
+      await service.from('war_bond_ledger').insert({
+        user_id: m.user_id, amount: c.war_bond_reward,
+        reason: c.role === 'distraction' ? 'distraction_success' : 'contract_completed', reference_id: c.id,
+      })
+    }
+    return ok({ id: body.contract_id, status: success ? 'completed' : 'failed', war_bonds_earned: success ? c.war_bond_reward : 0 })
   }
 
   // ─── Hire a mercenary (org or Hessian captain) ──────────────────────────────
@@ -280,7 +287,13 @@ export async function POST(req: NextRequest) {
       .eq('captain_id', userId!)
       .maybeSingle()
 
-    if (!membership && !company) return err('You must be an org leader or Hessian Captain to hire mercenaries', 403)
+    let isLeader = false
+    if (membership) {
+      const { data: lead } = await service.rpc('is_org_leader', { p_org: (membership as any).org_id, p_user: userId })
+      isLeader = !!lead
+    }
+    // Hiring spends the org's resources: leaders only (any member could hire before, Sep 29)
+    if (!isLeader && !company) return err('You must be an org leader or Hessian Captain to hire mercenaries', 403)
 
     // Validate distraction contract needs a decoy bar
     if (body.role === 'distraction' && !body.distraction_decoy_bar_id) {
@@ -301,13 +314,23 @@ export async function POST(req: NextRequest) {
         status: 'pending',
         war_bond_reward: reward,
         distraction_decoy_bar_id: body.distraction_decoy_bar_id ?? null,
+        hired_by: userId!,
+        payment_bracelet_id: body.payment_bracelet_id || null,
       })
       .select('id, status, role, war_bond_reward')
       .single()
 
-    if (error) return err(error.message, 500)
+    if (error) {
+      const PAY: Record<string, string> = {
+        PAYMENT_NOT_YOURS: "That bracelet isn't yours.", PAYMENT_NO_DRINKS: "Drink-offer bracelets can't be used as payment.",
+        PAYMENT_ALREADY_TRADED: 'That bracelet already changed hands once, so it can\'t be paid on.', PAYMENT_USED: 'That bracelet was already used.',
+        PAYMENT_IN_ESCROW: "That bracelet is already offered on another contract.", PAYMENT_EXPIRED: 'That bracelet has expired.',
+      }
+      for (const [k, m] of Object.entries(PAY)) if (error.message.includes(k)) return err(m, 409)
+      return err('Could not offer the contract.', 500)
+    }
 
-    return ok({ ...data, message: `Contract offered to mercenary. Reward: ${reward} War Bonds.` }, 201)
+    return ok({ ...data, message: `Contract offered to mercenary. Reward: ${reward} War Bonds${body.payment_bracelet_id ? ' plus the bracelet (held until the job is done)' : ''}.` }, 201)
   }
 
   return err('Invalid action')

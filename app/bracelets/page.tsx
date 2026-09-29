@@ -45,7 +45,7 @@ export default function MyBraceletsPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700 }}>🎁 {label(b)} · {b.bar}</div>
-                <div style={{ fontSize: 12, color: 'var(--bw-muted)' }}>{when(b)} · {b.state === 'tonight' ? 'good tonight' : b.state === 'upcoming' ? 'coming up' : b.state === 'used' ? 'used' : 'expired'}</div>
+                <div style={{ fontSize: 12, color: 'var(--bw-muted)' }}>{when(b)} · {b.state === 'tonight' ? 'good tonight' : b.state === 'upcoming' ? 'coming up' : b.state === 'escrow' ? 'held as payment on a contract' : b.state === 'used' ? 'used' : 'expired'}</div>
               </div>
               {b.state === 'tonight' && <button className="btn btn-primary" style={{ fontSize: 12 }} onClick={() => setOpen(open === b.id ? null : b.id)}>{open === b.id ? 'Hide' : 'Show at door'}</button>}
             </div>
