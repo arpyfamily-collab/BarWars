@@ -7,6 +7,7 @@ import SponsoredSkinsTool from './SponsoredSkinsTool'
 import GhostFlagsTool from './GhostFlagsTool'
 import EduGateTool from './EduGateTool'
 import BraceletTagsTool from './BraceletTagsTool'
+import WaitlistTool from './WaitlistTool'
 
 export const dynamic = 'force-dynamic'
 
@@ -240,6 +241,7 @@ export default async function OperatorOverview() {
       <GhostFlagsTool />
       <EduGateTool />
       <BraceletTagsTool />
+      <WaitlistTool />
     </div>
   )
 }
