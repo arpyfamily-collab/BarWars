@@ -100,6 +100,7 @@ export async function POST(req: NextRequest) {
 
   try { await sendCode(phone) }
   catch (e: any) {
+    console.error('twilio_verify_send_failed', { code: e.code, status: e.status, message: e.message })
     if (e.code === 60200 || e.code === 21211) return err("That number can't receive texts. Check it and try again.", 400)
     if (e.code === 60203) return err('Too many codes sent to this number. Try again later.', 429)
     if (e.code === 60410) return err('This number is blocked from verification.', 403)
