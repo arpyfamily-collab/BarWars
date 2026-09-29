@@ -71,7 +71,7 @@ export default function VerificationPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setPendingVerId(data.verification_id)
-      setResult(`Code sent to ${data.phone}. ${data.dev_otp ? `Dev mode: your code is ${data.dev_otp}` : ''}`)
+      setResult(data.message ?? 'Code sent. Check your texts.')
     } catch (e: any) { setError(e.message) }
     finally { setActionLoading(null) }
   }

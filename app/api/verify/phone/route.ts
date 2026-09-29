@@ -1,26 +1,20 @@
 import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireAuth, ok, err } from '@/lib/challenges'
+import { sendCode, checkCode, toUSE164, twilioConfigured } from '@/lib/twilio-verify'
 
 export const dynamic = 'force-dynamic'
-
-function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString()
-}
 
 /**
  * POST /api/verify/phone
  *
- * Send OTP:
- *   { phone: string }
- *   Creates a phone_verifications row with a 6-digit OTP.
- *   Velocity check: if this phone number is already used by another
- *   account, both accounts get flagged.
+ * Item 16 (Sep 29): Twilio Verify texts the code and checks it. We never store or return it (the old
+ * version handed the code back to the app in "dev_otp", so anyone could verify any number).
  *
- * Verify OTP:
- *   { verification_id: string, code: string }
- *   Marks verified=true if code matches and not expired.
- *   On success, sets profiles.phone_verified = true.
+ * Send code:   { phone }                     → texts a 6-digit code (US numbers only for the pilot)
+ * Check code:  { verification_id, code }     → on success sets profiles.phone_verified = true
+ * One phone number, one account: a number already verified elsewhere is refused. (It used to flag both
+ * accounts, which let anyone get a rival flagged by typing in their number.)
  */
 export async function POST(req: NextRequest) {
   const { userId, error: authError } = await requireAuth()
@@ -55,9 +49,10 @@ export async function POST(req: NextRequest) {
       .update({ attempts: v.attempts + 1 })
       .eq('id', body.verification_id)
 
-    if (v.otp_code !== body.code) {
-      return err('Incorrect code', 400)
-    }
+    let approved = false
+    try { approved = await checkCode(v.phone, String(body.code).replace(/\D/g, '')) }
+    catch { return err("Couldn't check the code right now. Try again in a minute.", 502) }
+    if (!approved) return err('Incorrect or expired code', 400)
 
     // Correct code — mark verified
     await service
@@ -76,36 +71,22 @@ export async function POST(req: NextRequest) {
 
   // ─── Send OTP ───────────────────────────────────────────────────────────────
   if (!body.phone) return err('phone is required')
-  const phone = body.phone.replace(/\s/g, '')
+  const phone = toUSE164(body.phone)
+  if (!phone) return err('Enter a US mobile number.', 400)
+  if (!twilioConfigured()) return err('Phone verification is not set up yet.', 503)
 
-  // Basic phone validation
-  if (phone.length < 10) return err('Invalid phone number')
-
-  // Velocity check: has this phone been used by another account?
+  // One phone number, one account. Refuse without flagging anyone (flagging let people grief rivals).
   const { data: existingPhone } = await service
     .from('phone_verifications')
     .select('user_id')
     .eq('phone', phone)
     .eq('verified', true)
     .neq('user_id', userId!)
+    .limit(1)
     .maybeSingle()
+  if (existingPhone) return err('This phone number is already verified on another account.', 409)
 
-  if (existingPhone) {
-    // Flag both accounts — same phone number across accounts
-    await service
-      .from('profiles')
-      .update({ account_status: 'flagged' })
-      .eq('id', userId!)
-
-    await service
-      .from('profiles')
-      .update({ account_status: 'flagged' })
-      .eq('id', (existingPhone as any).user_id)
-
-    return err('This phone number is already verified on another account. Both accounts have been flagged for review.', 403)
-  }
-
-  // Check for recent unexpired OTP to prevent spam
+  // One pending code at a time (Twilio codes last 10 minutes)
   const { data: recentOtp } = await service
     .from('phone_verifications')
     .select('id, expires_at')
@@ -115,36 +96,28 @@ export async function POST(req: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
+  if (recentOtp) return err('A code is already on its way. Wait a few minutes before asking for another.', 429)
 
-  if (recentOtp) {
-    return err('You already have a pending code. Wait for it to expire or verify it.', 429)
+  try { await sendCode(phone) }
+  catch (e: any) {
+    if (e.code === 60200 || e.code === 21211) return err("That number can't receive texts. Check it and try again.", 400)
+    if (e.code === 60203) return err('Too many codes sent to this number. Try again later.', 429)
+    if (e.code === 60410) return err('This number is blocked from verification.', 403)
+    return err("Couldn't send the text right now. Try again in a minute.", 502)
   }
-
-  const otp = generateOTP()
 
   const { data, error } = await service
     .from('phone_verifications')
-    .insert({
-      user_id: userId!,
-      phone,
-      otp_code: otp,
-      verified: false,
-      attempts: 0,
-    })
+    .insert({ user_id: userId!, phone, otp_code: null, verified: false, attempts: 0 })
     .select('id, phone, expires_at')
     .single()
+  if (error) return err('Could not start verification.', 500)
 
-  if (error) return err(error.message, 500)
-
-  // In production, send OTP via Twilio SMS here.
-  // For now, return the OTP in the response for development.
-  // The client should NOT display this in production — it's for dev only.
   return ok({
     verification_id: (data as any).id,
     phone: (data as any).phone,
     expires_at: (data as any).expires_at,
-    dev_otp: otp, // REMOVE IN PRODUCTION — use Twilio instead
-    message: 'Verification code sent. (Development mode: code is included in response.)',
+    message: `Code sent to ${phone.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3')}.`,
   }, 201)
 }
 
