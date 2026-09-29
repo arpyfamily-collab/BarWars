@@ -2,6 +2,7 @@
 export function spyError(raw: string | null | undefined): { message: string; status: number } {
   const m = raw ?? ''
   const codes: Record<string, [string, number]> = {
+    NOT_AT_BAR: ['Bar observations are filed from the bar: turn on location and be within 100 m of it.', 403],
     NOT_YOUR_ASSET: ["You're not an active spy for that handler.", 403],
     BURNED: ['You have been burned. Your spy status is public.', 403],
     WAR_NOT_ACTIVE: ['That war is over or not declared yet. Reports can only be filed while a war is on.', 409],

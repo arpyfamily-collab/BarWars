@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * POST /api/turf-wars/spies/intel  { asset_id?, claim_id, intel_type, content }
+ * POST /api/turf-wars/spies/intel  { asset_id?, claim_id, intel_type, content, latitude?, longitude? (bar observations) }
  * A mole files a report for one war (3 per spy per war, only while the war is on).
  */
 export async function POST(req: NextRequest) {
@@ -90,10 +90,25 @@ export async function POST(req: NextRequest) {
     assetId = rows[0].id
   }
 
+  // Item 12: a bar observation has to be filed from the bar (within 100 m, like a check-in)
+  let present = false
+  if (body.intel_type === 'bar_observation' && body.latitude != null && body.longitude != null) {
+    const { data: war } = await service.from('turf_claims').select('bar:venues(lat, lon)').eq('id', body.claim_id).maybeSingle()
+    const bar: any = (war as any)?.bar
+    if (bar?.lat != null && bar?.lon != null) {
+      const R = 6371000, toRad = (d: number) => d * Math.PI / 180
+      const dLat = toRad(Number(bar.lat) - body.latitude), dLon = toRad(Number(bar.lon) - body.longitude)
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(body.latitude)) * Math.cos(toRad(Number(bar.lat))) * Math.sin(dLon / 2) ** 2
+      present = 2 * R * Math.asin(Math.sqrt(h)) <= 100
+    }
+  }
+
   const { data, error } = await service.rpc('file_spy_intel', {
-    p_user: userId!, p_asset: assetId, p_claim: body.claim_id, p_type: body.intel_type, p_content: body.content,
+    p_user: userId!, p_asset: assetId, p_claim: body.claim_id, p_type: body.intel_type, p_content: body.content, p_present: present,
   })
   if (error) { const e = spyError(error.message); return err(e.message, e.status) }
   const left = (data as any)?.reports_left ?? 0
-  return ok({ ...(data as any), message: `Intel delivered to your handler's intel cell. ${left} report${left === 1 ? '' : 's'} left for this war.` }, 201)
+  const badge = (data as any)?.badge
+  const earned = badge === 'spymaster' ? ' You hold the Spymaster badge.' : badge === 'field_agent' ? ' Field Agent badge.' : badge === 'informant' ? ' Informant badge.' : ''
+  return ok({ ...(data as any), message: `Intel delivered to your handler's intel cell. ${left} report${left === 1 ? '' : 's'} left for this war.${earned}` }, 201)
 }

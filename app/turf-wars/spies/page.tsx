@@ -213,10 +213,18 @@ export default function SpyNetworkPage() {
     setActionLoading('intel')
     setActionResult(null)
     try {
+      // Bar observations are filed from the bar (item 12)
+      let where: { latitude?: number; longitude?: number } = {}
+      if (intelType === 'bar_observation' && 'geolocation' in navigator) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000 }))
+          where = { latitude: pos.coords.latitude, longitude: pos.coords.longitude }
+        } catch {}
+      }
       const res = await fetch('/api/turf-wars/spies/intel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ intel_type: intelType, content: intelContent, asset_id: intelWar.split(':')[0], claim_id: intelWar.split(':')[1] }),
+        body: JSON.stringify({ intel_type: intelType, content: intelContent, asset_id: intelWar.split(':')[0], claim_id: intelWar.split(':')[1], ...where }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -440,7 +448,7 @@ export default function SpyNetworkPage() {
                    b.badge_type === 'mata_hari' ? <Eye size={14} style={{ color: 'var(--bw-gold)' }} /> :
                    <BadgeCheck size={14} style={{ color: 'var(--bw-green)' }} />}
                   <span style={{ fontSize: 13, fontWeight: 600, color: b.badge_type === 'burned' ? 'var(--bw-red)' : b.badge_type === 'mata_hari' ? 'var(--bw-gold)' : 'var(--bw-green)' }}>
-                    {b.badge_type === 'burned' ? 'BURNED' : b.badge_type === 'mata_hari' ? 'MATA HARI' : 'HIGH LOYALTY'}
+                    {({ burned: 'BURNED', mata_hari: 'MATA HARI', high_loyalty: 'HIGH LOYALTY', informant: 'INFORMANT', field_agent: 'FIELD AGENT', spymaster: 'SPYMASTER' } as Record<string, string>)[b.badge_type] ?? b.badge_type.toUpperCase()}
                   </span>
                   <span style={{ fontSize: 11, color: 'var(--bw-muted)', marginLeft: 'auto' }}>{b.detail}</span>
                 </div>
@@ -902,7 +910,7 @@ function GhostMarket({ data, valor, busy, onAction }: { data: any; valor: number
   const purchased: any[] = data.purchased ?? []
   const board: any[] = data.leaderboard ?? []
   const head = (t: string) => <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--bw-muted)', margin: '14px 0 8px' }}>{t}</div>
-  const rec = (r: any) => r ? `${r.sold} sold${r.rating ? ` · ${r.rating}★ (${r.ratings})` : ''}` : ''
+  const rec = (r: any) => r ? `${r.sold} sold${r.rating ? ` · ${r.rating}★ (${r.ratings})` : ''}${r.accuracy != null ? ` · ${r.accuracy}% accurate` : ''}${r.ruled_fake ? ` · ${r.ruled_fake} ruled fake` : ''}` : ''
   return (
     <>
       {market.length > 0 && (
@@ -971,7 +979,7 @@ function GhostMarket({ data, valor, busy, onAction }: { data: any; valor: number
             {board.map((g, i) => (
               <div key={g.codename} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0' }}>
                 <span>#{i + 1} {g.codename}</span>
-                <span style={{ color: 'var(--bw-muted)' }}>{g.sold} sold · {g.valor_earned} Valor{g.rating ? ` · ${g.rating}★` : ''}</span>
+                <span style={{ color: 'var(--bw-muted)' }}>{g.sold} sold · {g.valor_earned} Valor{g.rating ? ` · ${g.rating}★` : ''}{g.accuracy != null ? ` · ${g.accuracy}% accurate` : ''}</span>
               </div>
             ))}
           </div>

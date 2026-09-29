@@ -1,0 +1,1 @@
+-- applied as migration spy_presence_badges_ghost_accuracy (Sep 29): file_spy_intel(..., p_present) requires presence for bar observations and awards Informant/Field Agent/Spymaster; ghost_record adds accuracy vs. actual check-ins on decided wars. Full SQL in the Supabase migration history.
