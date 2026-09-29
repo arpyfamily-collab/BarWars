@@ -10,6 +10,10 @@ import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase-client'
 import { Radio, Megaphone, Flag, Loader2 } from 'lucide-react'
 
+// Email opt-ins hidden for the pilot (Brian, Sep 29): BarWars has no email provider yet, so nothing would be sent.
+// Sign-ups already stored are kept. Turn back on once email is set up; push (Build 4) covers war alerts meanwhile.
+const EMAIL_OPT_INS = false
+
 const RED = '#E03131', BLUE = '#378ADD'
 
 export default function WatchPage({ params }: { params: { id: string } }) {
@@ -124,8 +128,10 @@ export default function WatchPage({ params }: { params: { id: string } }) {
                 ))}
                 <span style={{ marginLeft: 'auto', color: 'var(--bw-muted)' }}>{shout.length}/140</span>
               </div>
-              <label style={{ fontSize: 12, display: 'flex', gap: 6 }}><input type="checkbox" checked={alerts} onChange={e => setAlerts(e.target.checked)} /> Email me when the next war starts</label>
-              <label style={{ fontSize: 12, display: 'flex', gap: 6 }}><input type="checkbox" checked={marketing} onChange={e => setMarketing(e.target.checked)} /> Send me BarWars news and offers (optional)</label>
+              {EMAIL_OPT_INS && <>
+                <label style={{ fontSize: 12, display: 'flex', gap: 6 }}><input type="checkbox" checked={alerts} onChange={e => setAlerts(e.target.checked)} /> Email me when the next war starts</label>
+                <label style={{ fontSize: 12, display: 'flex', gap: 6 }}><input type="checkbox" checked={marketing} onChange={e => setMarketing(e.target.checked)} /> Send me BarWars news and offers (optional)</label>
+              </>}
               <button className="btn btn-primary" disabled={busy || !shout.trim()} onClick={sendShout}>{busy ? 'Posting…' : 'Shout'}</button>
             </div>
           ) : linkSent ? (
