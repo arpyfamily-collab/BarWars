@@ -8,9 +8,14 @@ const cfg = () => ({
   service: process.env.TWILIO_VERIFY_SERVICE_SID ?? '',
 })
 
+/** All four settings present and the right kind: service VA…, key SK…, account AC… (catches mix-ups) */
 export function twilioConfigured() {
-  const c = cfg()
-  return !!(c.sid && c.secret && c.service && process.env.TWILIO_ACCOUNT_SID)
+  const c = cfg(), acct = process.env.TWILIO_ACCOUNT_SID ?? ''
+  const ok = /^VA[0-9a-f]{32}$/i.test(c.service) && /^SK[0-9a-f]{32}$/i.test(c.sid) && c.secret.length >= 16 && /^AC[0-9a-f]{32}$/i.test(acct)
+  if (!ok) console.error('twilio_verify_misconfigured', {
+    service: c.service.slice(0, 2) || 'missing', key: c.sid.slice(0, 2) || 'missing', secret: c.secret ? 'set' : 'missing', account: acct.slice(0, 2) || 'missing',
+  })
+  return ok
 }
 
 async function call(path: string, form: Record<string, string>) {
