@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "923216750096",
+    "project_id": "barwars-fe9f7",
+    "storage_bucket": "barwars-fe9f7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:923216750096:android:8a4f85523827a4b5e44c95",
+        "android_client_info": {
+          "package_name": "com.arpyfamily.barwars"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC9OxRApflKuIvMy4FUhL5gNe8tP_GuTRQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
