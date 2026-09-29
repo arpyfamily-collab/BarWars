@@ -89,5 +89,5 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   // All pages except Next.js internals, API routes (they check auth themselves) and static files
-  matcher: ['/((?!_next/static|_next/image|api/|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|txt|xml|json|webmanifest|js|css|map|woff2?)$).*)'],
+  matcher: ['/((?!_next/static|_next/image|api/|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|txt|xml|json|webmanifest|js|css|map|woff2?|pdf)$).*)'],
 }
