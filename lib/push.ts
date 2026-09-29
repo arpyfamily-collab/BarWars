@@ -14,12 +14,18 @@ const b64url = (b: Buffer | string) => Buffer.from(b).toString('base64').replace
 
 // ── Apple ────────────────────────────────────────────────────────────────────────────────────────
 let apnsJwt: { token: string; at: number } | null = null
+
+/** Rebuild a .p8 however it was pasted (line breaks flattened to spaces, literal \\n, or no header lines) */
+function normalizeP8(raw: string): string {
+  const body = raw.replace(/\\n/g, '\n').replace(/-----(BEGIN|END) PRIVATE KEY-----/g, '').replace(/[^A-Za-z0-9+/=]/g, '')
+  return `-----BEGIN PRIVATE KEY-----\n${body.match(/.{1,64}/g)!.join('\n')}\n-----END PRIVATE KEY-----\n`
+}
 function apnsToken(): string | null {
   const kid = process.env.APNS_KEY_ID, iss = process.env.APNS_TEAM_ID, pem = process.env.APNS_PRIVATE_KEY
   if (!kid || !iss || !pem) return null
   if (apnsJwt && Date.now() - apnsJwt.at < 45 * 60_000) return apnsJwt.token   // Apple: refresh within 20-60 min
   const head = b64url(JSON.stringify({ alg: 'ES256', kid })), claims = b64url(JSON.stringify({ iss, iat: Math.floor(Date.now() / 1000) }))
-  const key = createPrivateKey(pem.replace(/\\n/g, '\n'))
+  const key = createPrivateKey(normalizeP8(pem))
   const sig = createSign('SHA256').update(`${head}.${claims}`).sign({ key, dsaEncoding: 'ieee-p1363' })
   apnsJwt = { token: `${head}.${claims}.${b64url(sig)}`, at: Date.now() }
   return apnsJwt.token
