@@ -80,7 +80,7 @@ export default async function HomePage() {
         {/* ── War Map ─────────────────────────────────────────── */}
         <TurfMap />
         <div style={{ marginTop: 12 }}>
-          <LocationToggle />
+          <LocationToggle compact />
         </div>
 
         {/* ── Reinforcements Alert ────────────────────────────── */}

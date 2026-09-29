@@ -2,10 +2,12 @@
 
 /** "Show me on the War Map" opt-in (Testing To-Do item 5). */
 import { useEffect, useState } from 'react'
-import { MapPin } from 'lucide-react'
+import { MapPin, Info } from 'lucide-react'
 import { reportPosition } from '@/components/LocationReporter'
 
-export default function LocationToggle() {
+/** compact = Home: slim row, privacy note behind an "i", no tester picker (full card lives on Account). */
+export default function LocationToggle({ compact = false }: { compact?: boolean }) {
+  const [showInfo, setShowInfo] = useState(false)
   const [enabled, setEnabled] = useState<boolean | null>(null)
   const [atBar, setAtBar] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -61,26 +63,36 @@ export default function LocationToggle() {
 
   if (enabled === null) return null
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8, ...(compact ? { padding: '10px 14px' } : {}) }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           <MapPin size={16} style={{ color: enabled ? 'var(--bw-green)' : 'var(--bw-muted)', flexShrink: 0 }} />
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>Show me on the War Map</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+              Show me on the War Map
+              {compact && (
+                <button type="button" onClick={() => setShowInfo(v => !v)} aria-label="Privacy info" aria-expanded={showInfo}
+                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--bw-muted)', display: 'inline-flex' }}>
+                  <Info size={14} />
+                </button>
+              )}
+            </div>
             <div style={{ fontSize: 11, color: 'var(--bw-muted)' }}>
               {enabled ? (atBar ? `You're showing at ${atBar}` : 'On. You show up when you’re at a bar on the Square') : 'Off'}
             </div>
           </div>
         </div>
         <button className="btn" disabled={busy} onClick={toggle} role="switch" aria-checked={!!enabled}
-          style={{ fontSize: 12, padding: '6px 12px', flexShrink: 0, ...(enabled ? { color: 'var(--bw-green)', borderColor: 'rgba(46,204,113,0.4)' } : {}) }}>
+          style={{ fontSize: 12, padding: '6px 12px', width: 'auto', flexShrink: 0, ...(enabled ? { color: 'var(--bw-green)', borderColor: 'rgba(46,204,113,0.4)' } : {}) }}>
           {busy ? '…' : enabled ? 'On' : 'Turn on'}
         </button>
       </div>
-      <div style={{ fontSize: 11, color: 'var(--bw-muted)', lineHeight: 1.5 }}>
-        Others see your skin at the bar you&apos;re in, never your name or exact spot. Only while the app is open. Turn it off any time.
-      </div>
-      {tester && (
+      {(!compact || showInfo) && (
+        <div style={{ fontSize: 11, color: 'var(--bw-muted)', lineHeight: 1.5 }}>
+          Others see your skin at the bar you&apos;re in, never your name or exact spot. Only while the app is open. Turn it off any time.
+        </div>
+      )}
+      {tester && !compact && (
         <div style={{ borderTop: '1px solid var(--bw-border)', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--bw-cyan)' }}>Tester: place me at</div>
           <div style={{ display: 'flex', gap: 6 }}>
