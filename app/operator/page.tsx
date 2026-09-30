@@ -30,6 +30,9 @@ function StatCard({ label, value, sub, color }: { label: string; value: string |
   )
 }
 
+// Bar Challenges is switched off for the Nov 7 launch (Sep 30); flip to bring its overview back
+const SHOW_CHALLENGES = false
+
 export default async function OperatorOverview() {
   const supabase = createServerSupabaseClient()
 
@@ -81,6 +84,7 @@ export default async function OperatorOverview() {
         </div>
       </div>
 
+      {SHOW_CHALLENGES && (<>
       {/* Stat grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 40 }}>
         <StatCard label="Pending approval" value={pendingCount} sub="awaiting your review" color={pendingCount > 0 ? 'var(--bw-gold)' : undefined} />
@@ -233,6 +237,7 @@ export default async function OperatorOverview() {
           </div>
         </div>
       )}
+      </>)}
 
       <FactionMoveTool />
       <TestersTool />

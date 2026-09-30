@@ -12,7 +12,17 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 
+// Features switched off for the Nov 7 launch (Brian, Sep 30): Bar Challenges, Mystery Drops, Predictions and
+// game-day demand scores never ran (unscheduled, and Bar Challenges' scoring function is missing). Pages go
+// home; their API routes answer 404. Remove a prefix here to bring a feature back.
+const OFF_PAGES = ['/challenge', '/war-room', '/predictions', '/drops', '/operator/challenges']
+const OFF_APIS = ['/api/challenges', '/api/drops', '/api/predictions']
+const under = (path: string, prefixes: string[]) => prefixes.some(p => path === p || path.startsWith(p + '/'))
+
 export async function middleware(req: NextRequest) {
+  const reqPath = req.nextUrl.pathname
+  if (under(reqPath, OFF_APIS)) return NextResponse.json({ error: 'This feature is not available.' }, { status: 404 })
+  if (under(reqPath, OFF_PAGES)) return NextResponse.redirect(new URL(reqPath.startsWith('/operator') ? '/operator' : '/', req.url))
   let res = NextResponse.next({ request: { headers: req.headers } })
 
   const supabase = createServerClient(
@@ -89,5 +99,8 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   // All pages except Next.js internals, API routes (they check auth themselves) and static files
-  matcher: ['/((?!_next/static|_next/image|api/|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|txt|xml|json|webmanifest|js|css|map|woff2?|pdf)$).*)'],
+  matcher: [
+    '/((?!_next/static|_next/image|api/|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|txt|xml|json|webmanifest|js|css|map|woff2?|pdf)$).*)',
+    '/api/challenges/:path*', '/api/drops/:path*', '/api/predictions/:path*',
+  ],
 }

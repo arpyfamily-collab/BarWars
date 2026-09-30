@@ -524,14 +524,6 @@ export default function BraceletHuntPage() {
           </div>
         )}
 
-        {/* ── Link to Mystery Drops ────────────────────────────────── */}
-        <Link
-          href="/drops"
-          className="btn btn-ghost"
-          style={{ fontSize: 12, textDecoration: 'none', padding: '10px' }}
-        >
-          View Mystery Drops
-        </Link>
 
       </div>
       <BottomNav />
