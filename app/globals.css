@@ -98,7 +98,7 @@ label { display: block; font-size: 12px; font-weight: 600; letter-spacing: 0.06e
 .qr-container { background: #fff; border-radius: var(--bw-radius-lg); padding: 16px; display: flex; align-items: center; justify-content: center; }
 .divider { height: 1px; background: var(--bw-border); margin: 20px 0; }
 .page { min-height: 100dvh; padding-bottom: 80px; }
-.page-header { padding: 56px 20px 24px; }
+.page-header { padding: calc(56px + env(safe-area-inset-top, 0px)) 20px 24px; }
 .page-content { padding: 0 20px; display: flex; flex-direction: column; gap: 16px; }
 .stack { display: flex; flex-direction: column; }
 .stack-sm { gap: 8px; }

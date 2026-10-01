@@ -316,12 +316,12 @@ export default function ChatPage() {
   const placeholder = rallyMode ? 'RALLY YOUR TROOPS...' : intelMode ? 'Drop intel...' : 'Send a message...'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', maxHeight: '100dvh', background: '#0D1117' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: '#0D1117' }}>
 
       {/* Chat Header */}
       <div style={{
         flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10,
-        padding: '14px 16px', borderBottom: '1px solid #252D3D',
+        padding: 'calc(14px + env(safe-area-inset-top, 0px)) 16px 14px', borderBottom: '1px solid #252D3D',
         background: '#13171F',
       }}>
         <Link href="/comms" style={{ color: 'var(--bw-muted)', textDecoration: 'none', display: 'flex' }}>
